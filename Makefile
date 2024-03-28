@@ -48,4 +48,9 @@ uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/st
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st.1
 
+patch: clean
+	git checkout .
+	rm -rf *.orig *.desktop *.rej config.h
+	$(foreach var, $(shell ls patches), patch -p1 < patches/$(var);)
+
 .PHONY: all clean dist install uninstall
