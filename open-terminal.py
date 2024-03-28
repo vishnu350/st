@@ -1,5 +1,9 @@
 # -*- coding: UTF-8 -*-
+# Written by Vishnu Paramasivam.
 # Nautilus extension script for Suckless Terminal
+# Copy this script to /usr/share/nautilus-python/extensions
+# Uninstall nautilus-extension-gnome-terminal to avoid issues
+# To debug this script, run "nautilus --no-desktop" in a terminal
 
 from gettext import gettext, textdomain
 from gi.repository import Gio, GObject, Nautilus
