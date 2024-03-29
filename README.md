@@ -1,6 +1,6 @@
 # Debian Suckless Terminal (st)
 
-This is a fork of st from [suckless.org](https://st.suckless.org) for Debian Gnome. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
+This is a fork of st from [suckless.org](https://st.suckless.org) for Debian Gnome-based distros. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
 - Proper "Open Terminal Here" integration for Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections.
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)

@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-# Written by Vishnu Paramasivam.
 # Nautilus extension script for Suckless Terminal
 # Copy this script to /usr/share/nautilus-python/extensions
 # Uninstall nautilus-extension-gnome-terminal to avoid issues
