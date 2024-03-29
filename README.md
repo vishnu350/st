@@ -13,7 +13,7 @@ This is a Debian Gnome specific fork of st from [suckless.org](https://st.suckle
 - Solarized dark
 - Fira Code Fonts
 
-st is a simple terminal emulator for X which sucks less. See philosophy [here](https://suckless.org/philosophy).
+st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
 
 Less is more.
 
@@ -21,9 +21,11 @@ Less is more.
 # Requirements
 
 In order to properly build Debian st you need the following packages:
+    
     sudo apt install build-essential fonts-firacode libxft-dev pkg-config python3-nautilus
 
 To avoid conflicts, default nautilus open terminal extension should be removed:
+    
     sudo apt purge nautilus-extension-gnome-terminal
 
 Usage of tmux is recommended.
@@ -31,7 +33,9 @@ Usage of tmux is recommended.
 
 # Installation
 
-To install, apply the patches and then make install as root:
+To install, clone and apply the patches. Then make install as root:
+
+    git clone https://github.com/vishnu350/st
     make patch
     sudo make install
 
@@ -47,5 +51,7 @@ See the man page for additional details.
 
 # Credits
 
-Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.
+- Patches merged from official suckless project page: [https://st.suckless.org](https://st.suckless.org)
+- Open terminal python script adapted from Tilix: [https://github.com/gnunn1/tilix](https://github.com/gnunn1/tilix)
+- Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.
 
