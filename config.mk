@@ -7,6 +7,8 @@ VERSION = 0.9.1
 PREFIX = /usr/local
 MANPREFIX = $(PREFIX)/share/man
 
+NAUTILUS_EXT = /usr/share/nautilus-python/extensions
+
 X11INC = /usr/X11R6/include
 X11LIB = /usr/X11R6/lib
 

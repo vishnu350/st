@@ -35,6 +35,7 @@ dist: clean
 	rm -rf st-$(VERSION)
 
 install: st
+	cp -f open-terminal.py $(NAUTILUS_EXT)
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp -f st $(DESTDIR)$(PREFIX)/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/st
@@ -47,6 +48,7 @@ install: st
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/st
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st.1
+	rm -f $(NAUTILUS_EXT)/open-terminal.py
 
 patch: clean
 	git checkout .
