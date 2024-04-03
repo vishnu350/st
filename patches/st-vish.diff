@@ -35,3 +35,14 @@ index 2cd740a..d42d5c5 100644
  	{ XK_Delete,        XK_ANY_MOD,     "\033[3~",      +1,    0},
  	{ XK_BackSpace,     XK_NO_MOD,      "\177",          0,    0},
  	{ XK_BackSpace,     Mod1Mask,       "\033\177",      0,    0},
+diff --git a/config.mk b/config.mk
+index 27416c3..b9ed8ee 100644
+--- a/config.mk
++++ b/config.mk
+@@ -1,5 +1,5 @@
+ # st version
+-VERSION = 0.9.1
++VERSION = 0.9.1.2-dst
+ 
+ # Customize below to fit your system
+ 
