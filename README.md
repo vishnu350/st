@@ -11,7 +11,7 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Debian Gno
 - Swap mouse cursor (for VIM/etc)
 - One clipboard (better cut/paste)
 - Solarized dark
-- Fira Code Fonts
+- Fira Code Nerd Fonts
 
 st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
 
@@ -20,7 +20,7 @@ st is a simple terminal emulator for X which sucks less. See their philosophy [h
 
 In order to properly build Debian st you need the following packages:
     
-    sudo apt install build-essential fonts-firacode libxft-dev pkg-config python3-nautilus
+    sudo apt install build-essential libxft-dev pkg-config python3-nautilus
 
 To avoid conflicts, default nautilus open terminal extension should be removed:
     
@@ -35,6 +35,7 @@ To install, clone and apply the patches. Then make install as root:
 
     git clone https://github.com/vishnu350/st
     make patch
+    make fonts
     sudo make install
 
 
