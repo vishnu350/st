@@ -37,6 +37,7 @@ dist: clean
 install: st
 	cp -f open-terminal.py $(NAUTILUS_EXT)
 	wget -c "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+	rm -rf $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 	unzip FiraCode.zip -d $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp -f st $(DESTDIR)$(PREFIX)/bin
