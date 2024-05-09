@@ -42,7 +42,7 @@ index 27416c3..b9ed8ee 100644
 @@ -1,5 +1,5 @@
  # st version
 -VERSION = 0.9.1
-+VERSION = 0.9.1.2-dst
++VERSION = 0.9.1.3-dst
  
  # Customize below to fit your system
  
