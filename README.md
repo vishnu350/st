@@ -31,12 +31,12 @@ Usage of tmux is recommended.
 
 # Installation
 
-To install, clone and apply the patches. Then make install as root:
+To install Debian st: Clone, apply the patches, make install as root, and rebuild the font cache.
 
     git clone https://github.com/vishnu350/st
     make patch
-    make fonts
     sudo make install
+    fc-cache -fv
 
 
 # Running st

@@ -34,14 +34,10 @@ dist: clean
 	tar -cf - st-$(VERSION) | gzip > st-$(VERSION).tar.gz
 	rm -rf st-$(VERSION)
 
-fonts:
-	wget -c "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
-	mkdir -p $(HOME)/.fonts
-	unzip FiraCode.zip -d $(HOME)/.fonts/FiraCodeNerd
-	fc-cache -fv
-
 install: st
 	cp -f open-terminal.py $(NAUTILUS_EXT)
+	wget -c "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
+	unzip FiraCode.zip -d $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp -f st $(DESTDIR)$(PREFIX)/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/st
@@ -55,6 +51,7 @@ uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/st
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st.1
 	rm -f $(NAUTILUS_EXT)/open-terminal.py
+	rm -rf $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 
 patch: clean
 	mv patches patches.bak
