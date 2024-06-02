@@ -60,6 +60,6 @@ patch: clean
 	rm -rf patches
 	mv patches.bak patches
 	rm -rf *.orig *.desktop *.rej config.h
-	$(foreach var, $(shell ls patches), patch -p1 < patches/$(var);)
+	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
 
 .PHONY: all clean dist install uninstall
