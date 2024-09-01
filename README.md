@@ -1,6 +1,6 @@
 # Debian Suckless Terminal (st)
 
-This is a fork of st from [suckless.org](https://st.suckless.org) for Debian Gnome-based distros. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
+This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian, Ubuntu, and Linux Mint. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
 - Proper "Open Terminal Here" integration for Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections.
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)
@@ -10,6 +10,7 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Debian Gno
 - Blinking cursor (Square Box)
 - Swap mouse cursor (for VIM/etc)
 - One clipboard (better cut/paste)
+- Fullscreen support (F11/Alt-Enter)
 - Solarized dark
 - Fira Code Nerd Fonts
 
@@ -37,6 +38,10 @@ To install Debian st: Clone, apply the patches, make install as root, and rebuil
     make patch
     sudo make install
     fc-cache -fv
+
+To customize common settings, edit the files below prior to running make patch:
+- Font settings: patches/st-vish.diff (line 10)
+- Transparency value: patches/st-alpha-swapmouse.diff (line 10)
 
 
 # Running st
