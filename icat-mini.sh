@@ -23,7 +23,7 @@ Options:
 "
 
 # Exit the script on keyboard interrupt
-trap "exit 1" INT
+trap "echo 'icat-mini was interrupted' >&2; exit 1" INT
 
 cols=""
 rows=""
@@ -146,15 +146,16 @@ fi
 # Compute the number of rows and columns
 #####################################################################
 
-is_decimal() {
+is_pos_int() {
     if [ -z "$1" ]; then
         return 1 # false
     fi
     if [ -z "$(printf '%s' "$1" | tr -d '[:digit:]')" ]; then
-        return 0 # true
-    else
-        return 1 # false
+        if [ "$1" -gt 0 ]; then
+            return 0 # true
+        fi
     fi
+    return 1 # false
 }
 
 if [ -n "$cols" ] || [ -n "$rows" ]; then
@@ -171,19 +172,36 @@ if [ "$max_rows" -gt 255 ]; then
     max_rows=255
 fi
 
+python_ioctl_command="import array, fcntl, termios
+buf = array.array('H', [0, 0, 0, 0])
+fcntl.ioctl(0, termios.TIOCGWINSZ, buf)
+print(int(buf[2]/buf[1]), int(buf[3]/buf[0]))"
+
 # Get the cell size in pixels if either cols or rows are not specified.
 if [ -z "$cols" ] || [ -z "$rows" ]; then
     cell_width=""
     cell_height=""
+    # If the cell size is specified, use it.
     if [ -n "$cell_size" ]; then
-        if [ "$cell_size" =~ ^[0-9]+x[0-9]+$ ]; then
-            cell_width="${cell_size%x*}"
-            cell_height="${cell_size#*x}"
-        else
+        cell_width="${cell_size%x*}"
+        cell_height="${cell_size#*x}"
+        if ! is_pos_int "$cell_height" || ! is_pos_int "$cell_width"; then
             echo "Invalid cell size: $cell_size" >&2
             exit 1
         fi
-    else
+    fi
+    # Otherwise try to use TIOCGWINSZ ioctl via python.
+    if [ -z "$cell_width" ] || [ -z "$cell_height" ]; then
+        cell_size_ioctl="$(python3 -c "$python_ioctl_command" < "$tty" 2> /dev/null)"
+        cell_width="${cell_size_ioctl% *}"
+        cell_height="${cell_size_ioctl#* }"
+        if ! is_pos_int "$cell_height" || ! is_pos_int "$cell_width"; then
+            cell_width=""
+            cell_height=""
+        fi
+    fi
+    # If it didn't work, try to use csi XTWINOPS.
+    if [ -z "$cell_width" ] || [ -z "$cell_height" ]; then
         if [ -n "$inside_tmux" ]; then
             printf '\ePtmux;\e\e[16t\e\\' >> "$tty"
         else
@@ -200,7 +218,7 @@ if [ -z "$cols" ] || [ -z "$rows" ]; then
         done
         cell_height="$(printf '%s' "$term_response" | cut -d ';' -f 2)"
         cell_width="$(printf '%s' "$term_response" | cut -d ';' -f 3)"
-        if ! is_decimal "$cell_height" || ! is_decimal "$cell_width"; then
+        if ! is_pos_int "$cell_height" || ! is_pos_int "$cell_width"; then
             cell_width=8
             cell_height=16
         fi
@@ -219,7 +237,7 @@ if [ -z "$cols" ] || [ -z "$rows" ]; then
     format_output="$($identify -format '%w %h\n' "$file" | head -1)"
     img_width="$(printf '%s' "$format_output" | cut -d ' ' -f 1)"
     img_height="$(printf '%s' "$format_output" | cut -d ' ' -f 2)"
-    if ! is_decimal "$img_width" || ! is_decimal "$img_height"; then
+    if ! is_pos_int "$img_width" || ! is_pos_int "$img_height"; then
         echo "Couldn't get image size from identify: $format_output" >&2
         echo >&2
         exit 1
