@@ -40,9 +40,13 @@ int gr_parse_command(char *buf, size_t len);
 /// the argument. Executes xmessage with an error message on failure.
 void gr_preview_image(uint32_t image_id, const char *command);
 
-/// Generates a human-readable description of the image placement.
-void gr_get_placement_description(uint32_t image_id, uint32_t placement_id,
-				  char *buf, size_t len);
+/// Executes `<st> -e less <file>` where <file> is the name of a temporary file
+/// containing the information about an image and placement, and <st> is
+/// specified with `st_executable`.
+void gr_show_image_info(uint32_t image_id, uint32_t placement_id,
+			uint32_t imgcol, uint32_t imgrow,
+			char is_classic_placeholder, int32_t diacritic_count,
+			char *st_executable);
 
 /// Dumps the internal state (images and placements) to stderr.
 void gr_dump_state();

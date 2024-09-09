@@ -37,6 +37,7 @@
 #include <X11/extensions/Xrender.h>
 #include <assert.h>
 #include <ctype.h>
+#include <spawn.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +50,8 @@
 #include "graphics.h"
 #include "khash.h"
 #include "kvec.h"
+
+extern char **environ;
 
 #define MAX_FILENAME_SIZE 256
 #define MAX_INFO_LEN 256
@@ -1881,7 +1884,7 @@ Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Interaction with the terminal (init, deinit, appending rects, etc).
+// Initialization and deinitialization.
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Creates a temporary directory.
@@ -1954,6 +1957,228 @@ void gr_deinit() {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Dumping, debugging, and image preview.
+////////////////////////////////////////////////////////////////////////////////
+
+/// Returns a string containing a time difference in a human-readable format.
+/// Uses a static buffer, so be careful.
+static const char *gr_ago(Milliseconds diff) {
+	static char result[32];
+	double seconds = (double)diff / 1000.0;
+	if (seconds < 1)
+		snprintf(result, sizeof(result), "%.2f sec ago", seconds);
+	else if (seconds < 60)
+		snprintf(result, sizeof(result), "%d sec ago", (int)seconds);
+	else if (seconds < 3600)
+		snprintf(result, sizeof(result), "%d min %d sec ago",
+			 (int)(seconds / 60), (int)(seconds) % 60);
+	else {
+		snprintf(result, sizeof(result), "%d hr %d min %d sec ago",
+			 (int)(seconds / 3600), (int)(seconds) % 3600 / 60,
+			 (int)(seconds) % 60);
+	}
+	return result;
+}
+
+/// Prints to `file` with an indentation of `ind` spaces.
+static void fprintf_ind(FILE *file, int ind, const char *format, ...) {
+	fprintf(file, "%*s", ind, "");
+	va_list args;
+	va_start(args, format);
+	vfprintf(file, format, args);
+	va_end(args);
+}
+
+/// Dumps the image info to `file` with an indentation of `ind` spaces.
+static void gr_dump_image_info(FILE *file, Image *img, int ind) {
+	if (!img) {
+		fprintf_ind(file, ind, "Image is NULL\n");
+		return;
+	}
+	Milliseconds now = gr_now_ms();
+	fprintf_ind(file, ind, "Image %u\n", img->image_id);
+	ind += 4;
+	fprintf_ind(file, ind, "number: %u\n", img->image_number);
+	fprintf_ind(file, ind, "global command index: %lu\n",
+		img->global_command_index);
+	fprintf_ind(file, ind, "accessed: %ld  %s\n", img->atime,
+		    gr_ago(now - img->atime));
+	fprintf_ind(file, ind, "pix size: %ux%u\n", img->pix_width,
+		    img->pix_height);
+	fprintf_ind(file, ind, "cur frame start time: %ld  %s\n",
+		    img->current_frame_time,
+		    gr_ago(now - img->current_frame_time));
+	if (img->next_redraw)
+		fprintf_ind(file, ind, "next redraw: %ld  in %ld ms\n",
+			    img->next_redraw, img->next_redraw - now);
+	fprintf_ind(file, ind, "total disk size: %u KiB\n",
+		img->total_disk_size / 1024);
+	fprintf_ind(file, ind, "total duration: %d\n", img->total_duration);
+	fprintf_ind(file, ind, "frames: %d\n", gr_last_frame_index(img));
+	fprintf_ind(file, ind, "cur frame: %d\n", img->current_frame);
+	fprintf_ind(file, ind, "animation state: %d\n", img->animation_state);
+	fprintf_ind(file, ind, "default_placement: %u\n",
+		    img->default_placement);
+}
+
+/// Dumps the frame info to `file` with an indentation of `ind` spaces.
+static void gr_dump_frame_info(FILE *file, ImageFrame *frame, int ind) {
+	if (!frame) {
+		fprintf_ind(file, ind, "Frame is NULL\n");
+		return;
+	}
+	Milliseconds now = gr_now_ms();
+	fprintf_ind(file, ind, "Frame %d\n", frame->index);
+	ind += 4;
+	if (frame->index == 0) {
+		fprintf_ind(file, ind, "NOT INITIALIZED\n");
+		return;
+	}
+	if (frame->uploading_failure)
+		fprintf_ind(file, ind, "uploading failure: %s\n",
+			    image_uploading_failure_strings
+				    [frame->uploading_failure]);
+	fprintf_ind(file, ind, "gap: %d\n", frame->gap);
+	fprintf_ind(file, ind, "accessed: %ld  %s\n", frame->atime,
+		    gr_ago(now - frame->atime));
+	fprintf_ind(file, ind, "data pix size: %ux%u\n", frame->data_pix_width,
+		    frame->data_pix_height);
+	char filename[MAX_FILENAME_SIZE];
+	gr_get_frame_filename(frame, filename, MAX_FILENAME_SIZE);
+	if (access(filename, F_OK) != -1)
+		fprintf_ind(file, ind, "file: %s\n",
+			    sanitized_filename(filename));
+	else
+		fprintf_ind(file, ind, "not on disk\n");
+	fprintf_ind(file, ind, "disk size: %u KiB\n", frame->disk_size / 1024);
+	if (frame->imlib_object) {
+		unsigned ram_size = gr_frame_current_ram_size(frame);
+		fprintf_ind(file, ind,
+			    "loaded into ram, size: %d "
+			    "KiB\n",
+			    ram_size / 1024);
+	} else {
+		fprintf_ind(file, ind, "not loaded into ram\n");
+	}
+}
+
+/// Dumps the placement info to `file` with an indentation of `ind` spaces.
+static void gr_dump_placement_info(FILE *file, ImagePlacement *placement,
+				   int ind) {
+	if (!placement) {
+		fprintf_ind(file, ind, "Placement is NULL\n");
+		return;
+	}
+	Milliseconds now = gr_now_ms();
+	fprintf_ind(file, ind, "Placement %u\n", placement->placement_id);
+	ind += 4;
+	fprintf_ind(file, ind, "accessed: %ld  %s\n", placement->atime,
+		    gr_ago(now - placement->atime));
+	fprintf_ind(file, ind, "scale_mode: %u\n", placement->scale_mode);
+	fprintf_ind(file, ind, "size: %u cols x %u rows\n", placement->cols,
+		    placement->rows);
+	fprintf_ind(file, ind, "cell size: %ux%u\n", placement->scaled_cw,
+		    placement->scaled_ch);
+	fprintf_ind(file, ind, "ram per frame: %u KiB\n",
+		    gr_placement_single_frame_ram_size(placement) / 1024);
+	unsigned ram_size = gr_placement_current_ram_size(placement);
+	fprintf_ind(file, ind, "ram size: %d KiB\n", ram_size / 1024);
+}
+
+/// Dumps placement pixmaps to `file` with an indentation of `ind` spaces.
+static void gr_dump_placement_pixmaps(FILE *file, ImagePlacement *placement,
+				      int ind) {
+	if (!placement)
+		return;
+	int frameidx = 1;
+	foreach_pixmap(*placement, pixmap, {
+		fprintf_ind(file, ind, "Frame %d pixmap %lu\n", frameidx,
+			    pixmap);
+		++frameidx;
+	});
+}
+
+/// Dumps the internal state (images and placements) to stderr.
+void gr_dump_state() {
+	FILE *file = stderr;
+	int ind = 0;
+	fprintf_ind(file, ind, "======= Graphics module state dump =======\n");
+	fprintf_ind(file, ind,
+		"sizeof(Image) = %lu  sizeof(ImageFrame) = %lu  "
+		"sizeof(ImagePlacement) = %lu\n",
+		sizeof(Image), sizeof(ImageFrame), sizeof(ImagePlacement));
+	fprintf_ind(file, ind, "Image count: %u\n", kh_size(images));
+	fprintf_ind(file, ind, "Placement count: %u\n", total_placement_count);
+	fprintf_ind(file, ind, "Estimated RAM usage: %ld KiB\n",
+		images_ram_size / 1024);
+	fprintf_ind(file, ind, "Estimated Disk usage: %ld KiB\n",
+		images_disk_size / 1024);
+
+	Milliseconds now = gr_now_ms();
+
+	int64_t images_ram_size_computed = 0;
+	int64_t images_disk_size_computed = 0;
+
+	Image *img = NULL;
+	ImagePlacement *placement = NULL;
+	kh_foreach_value(images, img, {
+		fprintf_ind(file, ind, "----------------\n");
+		gr_dump_image_info(file, img, 0);
+		int64_t total_disk_size_computed = 0;
+		int total_duration_computed = 0;
+		foreach_frame(*img, frame, {
+			gr_dump_frame_info(file, frame, 4);
+			if (frame->image != img)
+				fprintf_ind(file, 8,
+					    "ERROR: WRONG IMAGE POINTER\n");
+			total_duration_computed += frame->gap;
+			images_disk_size_computed += frame->disk_size;
+			total_disk_size_computed += frame->disk_size;
+			if (frame->imlib_object)
+				images_ram_size_computed +=
+					gr_frame_current_ram_size(frame);
+		});
+		if (img->total_disk_size != total_disk_size_computed) {
+			fprintf_ind(file, ind,
+				"    ERROR: total_disk_size is %u, but "
+				"computed value is %ld\n",
+				img->total_disk_size, total_disk_size_computed);
+		}
+		if (img->total_duration != total_duration_computed) {
+			fprintf_ind(file, ind,
+				"    ERROR: total_duration is %d, but computed "
+				"value is %d\n",
+				img->total_duration, total_duration_computed);
+		}
+		kh_foreach_value(img->placements, placement, {
+			gr_dump_placement_info(file, placement, 4);
+			if (placement->image != img)
+				fprintf_ind(file, 8,
+					    "ERROR: WRONG IMAGE POINTER\n");
+			fprintf_ind(file, 8,
+				    "Pixmaps:\n");
+			gr_dump_placement_pixmaps(file, placement, 12);
+			unsigned ram_size =
+				gr_placement_current_ram_size(placement);
+			images_ram_size_computed += ram_size;
+		});
+	});
+	if (images_ram_size != images_ram_size_computed) {
+		fprintf_ind(file, ind,
+			"ERROR: images_ram_size is %ld, but computed value "
+			"is %ld\n",
+			images_ram_size, images_ram_size_computed);
+	}
+	if (images_disk_size != images_disk_size_computed) {
+		fprintf_ind(file, ind,
+			"ERROR: images_disk_size is %ld, but computed value "
+			"is %ld\n",
+			images_disk_size, images_disk_size_computed);
+	}
+	fprintf_ind(file, ind, "===========================================\n");
+}
+
 /// Executes `command` with the name of the file corresponding to `image_id` as
 /// the argument. Executes xmessage with an error message on failure.
 // TODO: Currently we do this for the first frame only. Not sure what to do with
@@ -1990,207 +2215,53 @@ void gr_preview_image(uint32_t image_id, const char *exec) {
 	}
 }
 
-/// Generates a human-readable description of the image placement.
-void gr_get_placement_description(uint32_t image_id, uint32_t placement_id,
-				  char *buf, size_t len) {
+/// Executes `<st> -e less <file>` where <file> is the name of a temporary file
+/// containing the information about an image and placement, and <st> is
+/// specified with `st_executable`.
+void gr_show_image_info(uint32_t image_id, uint32_t placement_id,
+			uint32_t imgcol, uint32_t imgrow,
+			char is_classic_placeholder, int32_t diacritic_count,
+			char *st_executable) {
+	char filename[MAX_FILENAME_SIZE];
+	snprintf(filename, sizeof(filename), "%s/info-%u", cache_dir, image_id);
+	FILE *file = fopen(filename, "w");
+	if (!file) {
+		perror("fopen");
+		return;
+	}
+	// Basic information about the cell.
+	fprintf(file, "image_id = %u = 0x%08X\n", image_id, image_id);
+	fprintf(file, "placement_id = %u = 0x%08X\n", placement_id, placement_id);
+	fprintf(file, "column = %d, row = %d\n", imgcol, imgrow);
+	fprintf(file, "classic/unicode placeholder = %s\n",
+		is_classic_placeholder ? "classic" : "unicode");
+	fprintf(file, "original diacritic count = %d\n", diacritic_count);
+	// Information about the image and the placement.
 	Image *img = gr_find_image(image_id);
-	if (!img) {
-		snprintf(buf, len, "Image with id=%u not found", image_id);
-		return;
-	}
 	ImagePlacement *placement = gr_find_placement(img, placement_id);
-	if (!placement) {
-		snprintf(buf, len, "Placement %u of image %u not found",
-			 placement_id, image_id);
+	gr_dump_image_info(file, img, 0);
+	gr_dump_placement_info(file, placement, 0);
+	if (img) {
+		fprintf(file, "Frames:\n");
+		foreach_frame(*img, frame, {
+			gr_dump_frame_info(file, frame, 4);
+		});
+	}
+	if (placement) {
+		fprintf(file, "Placement pixmaps:\n");
+		gr_dump_placement_pixmaps(file, placement, 4);
+	}
+	fclose(file);
+	char *argv[] = {st_executable, "-e", "less", filename, NULL};
+	if (posix_spawnp(NULL, st_executable, NULL, NULL, argv, environ) != 0) {
+		perror("posix_spawnp");
 		return;
 	}
-	snprintf(buf, len,
-		 "Image %u, placement %u\n"
-		 "%u cols x %u rows\n"
-		 "image size: %u x %u\n"
-		 "cell size: %u x %u\n"
-		 "src rect %u, %u  %u x %u\n"
-		 "all frames disk size: %u KiB\n"
-		 "(frame 1) uploading status: %s\n"
-		 "(frame 1) placement pixmap is %s\n"
-		 "(frame 1) imlib object is %s\n",
-		 image_id, placement_id, placement->cols, placement->rows,
-		 img->pix_width, img->pix_height,
-		 placement->scaled_cw, placement->scaled_ch,
-		 placement->src_pix_x, placement->src_pix_y,
-		 placement->src_pix_width, placement->src_pix_height,
-		 img->total_disk_size / 1024,
-		 image_uploading_failure_strings[img->first_frame
-							 .uploading_failure],
-		 placement->first_pixmap ? "loaded" : "not loaded",
-		 img->first_frame.imlib_object ? "loaded" : "not loaded");
 }
 
-/// Prints a time difference in a human-readable format.
-static void gr_print_ago(Milliseconds diff) {
-	double seconds = (double)diff / 1000.0;
-
-	if (seconds < 1)
-		fprintf(stderr, "%.2f sec ago\n", seconds);
-	else if (seconds < 60)
-		fprintf(stderr, "%d sec ago\n", (int)seconds);
-	else if (seconds < 3600)
-		fprintf(stderr, "%d min %d sec ago\n", (int)(seconds / 60),
-			(int)(seconds) % 60);
-	else {
-		fprintf(stderr, "%d hr %d min %d sec ago\n",
-			(int)(seconds / 3600), (int)(seconds) % 3600 / 60,
-			(int)(seconds) % 60);
-	}
-}
-
-/// Dumps the internal state (images and placements) to stderr.
-void gr_dump_state() {
-	fprintf(stderr, "======== Graphics module state dump ========\n");
-	fprintf(stderr,
-		"sizeof(Image) = %lu  sizeof(ImageFrame) = %lu  "
-		"sizeof(ImagePlacement) = %lu\n",
-		sizeof(Image), sizeof(ImageFrame), sizeof(ImagePlacement));
-	fprintf(stderr, "Image count: %u\n", kh_size(images));
-	fprintf(stderr, "Placement count: %u\n", total_placement_count);
-	fprintf(stderr, "Estimated RAM usage: %ld KiB\n",
-		images_ram_size / 1024);
-	fprintf(stderr, "Estimated Disk usage: %ld KiB\n",
-		images_disk_size / 1024);
-
-	Milliseconds now = gr_now_ms();
-
-	int64_t images_ram_size_computed = 0;
-	int64_t images_disk_size_computed = 0;
-
-	Image *img = NULL;
-	ImagePlacement *placement = NULL;
-	kh_foreach_value(images, img, {
-		fprintf(stderr, "----------------\n");
-		fprintf(stderr, "Image %u\n", img->image_id);
-		fprintf(stderr, "    number %u\n", img->image_number);
-		fprintf(stderr, "    global command index %lu\n",
-			img->global_command_index);
-		fprintf(stderr, "    accessed ");
-		gr_print_ago(now - img->atime);
-		fprintf(stderr, "    cur frame displayed ");
-		gr_print_ago(now - img->current_frame_time);
-		fprintf(stderr, "    total disk size: %u KiB\n",
-			img->total_disk_size / 1024);
-		fprintf(stderr, "    total duration: %d\n", img->total_duration);
-		fprintf(stderr, "    frames: %d\n", gr_last_frame_index(img));
-		fprintf(stderr, "    cur frame: %d\n", img->current_frame);
-		fprintf(stderr, "    animation state: %d\n",
-			img->animation_state);
-		int64_t total_disk_size_computed = 0;
-		int total_duration_computed = 0;
-		foreach_frame(*img, frame, {
-			fprintf(stderr, "    Frame %d\n", frame->index);
-			if (frame->index == 0) {
-				fprintf(stderr, "        NOT INITIALIZED\n");
-				continue;
-			}
-			if (frame->image != img)
-				fprintf(stderr,
-					"        ERROR: WRONG IMAGE POINTER\n");
-			if (frame->uploading_failure)
-				fprintf(stderr,
-					"        uploading failure: %s\n",
-					image_uploading_failure_strings
-						[frame->uploading_failure]);
-			fprintf(stderr, "        gap: %d\n", frame->gap);
-			total_duration_computed += frame->gap;
-			fprintf(stderr, "        accessed ");
-			gr_print_ago(now - frame->atime);
-			fprintf(stderr, "        data pix size: %ux%u\n",
-				frame->data_pix_width, frame->data_pix_height);
-			char filename[MAX_FILENAME_SIZE];
-			gr_get_frame_filename(frame, filename,
-					      MAX_FILENAME_SIZE);
-			if (access(filename, F_OK) != -1)
-				fprintf(stderr, "        file: %s\n",
-					sanitized_filename(filename));
-			else
-				fprintf(stderr, "        not on disk\n");
-			fprintf(stderr, "        disk size: %u KiB\n",
-				frame->disk_size / 1024);
-			images_disk_size_computed += frame->disk_size;
-			total_disk_size_computed += frame->disk_size;
-			if (frame->imlib_object) {
-				unsigned ram_size =
-					gr_frame_current_ram_size(frame);
-				fprintf(stderr,
-					"        loaded into ram, size: %d "
-					"KiB\n",
-					ram_size / 1024);
-				images_ram_size_computed += ram_size;
-			} else {
-				fprintf(stderr,
-					"        not loaded into ram\n");
-			}
-		});
-		if (img->total_disk_size != total_disk_size_computed) {
-			fprintf(stderr,
-				"    ERROR: total_disk_size is %u, but "
-				"computed value is %ld\n",
-				img->total_disk_size, total_disk_size_computed);
-		}
-		if (img->total_duration != total_duration_computed) {
-			fprintf(stderr,
-				"    ERROR: total_duration is %d, but computed "
-				"value is %d\n",
-				img->total_duration, total_duration_computed);
-		}
-		fprintf(stderr, "    default_placement = %u\n",
-			img->default_placement);
-		kh_foreach_value(img->placements, placement, {
-			fprintf(stderr, "    Placement %u\n",
-				placement->placement_id);
-			if (placement->image != img)
-				fprintf(stderr,
-					"        ERROR: WRONG IMAGE POINTER\n");
-			fprintf(stderr, "        accessed ");
-			gr_print_ago(now - placement->atime);
-			fprintf(stderr, "        scale_mode = %u\n",
-				placement->scale_mode);
-			fprintf(stderr,
-				"        size: %u cols x %u rows\n",
-			placement->cols, placement->rows);
-			fprintf(stderr, "        cell size: %ux%u\n",
-				placement->scaled_cw,
-				placement->scaled_ch);
-			fprintf(stderr, "        ram per frame: %u KiB\n",
-				gr_placement_single_frame_ram_size(placement) /
-					1024);
-			unsigned ram_size =
-				gr_placement_current_ram_size(placement);
-			fprintf(stderr,
-				"        ram size: %d "
-				"KiB\n",
-				ram_size / 1024);
-			images_ram_size_computed += ram_size;
-			int frameidx = 1;
-			foreach_pixmap(*placement, pixmap, {
-				fprintf(stderr, "        Frame %d pixmap %lu\n",
-					frameidx, pixmap);
-				++frameidx;
-			});
-		});
-	});
-	if (images_ram_size != images_ram_size_computed) {
-		fprintf(stderr,
-			"ERROR: images_ram_size is %ld, but computed value "
-			"is %ld\n",
-			images_ram_size, images_ram_size_computed);
-	}
-	if (images_disk_size != images_disk_size_computed) {
-		fprintf(stderr,
-			"ERROR: images_disk_size is %ld, but computed value "
-			"is %ld\n",
-			images_disk_size, images_disk_size_computed);
-	}
-	fprintf(stderr, "============================================\n");
-}
+////////////////////////////////////////////////////////////////////////////////
+// Appending and displaying image rectangles.
+////////////////////////////////////////////////////////////////////////////////
 
 /// Displays debug information in the rectangle using colors col1 and col2.
 static void gr_displayinfo(Drawable buf, ImageRect *rect, int col1, int col2,

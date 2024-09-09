@@ -358,33 +358,22 @@ void
 showimageinfo(const Arg *arg)
 {
 	Glyph g = getglyphat(mouse_col, mouse_row);
-	if (!(g.mode & ATTR_IMAGE))
-		return;
-	uint32_t image_id = tgetimgid(&g);
-	uint32_t placement_id = tgetimgplacementid(&g);
-	char placement_descr[256];
-	gr_get_placement_description(image_id, placement_id, placement_descr,
-				     sizeof(placement_descr));
-	char command[512];
-	size_t len =
-		snprintf(command, 511,
-			 "xmessage 'image_id = %u = 0x%08X\n"
-			 "placement_id = %u = 0x%08X\n"
-			 "column = %d, row = %d\n"
-			 "classic/unicode placeholder = %s\n"
-			 "original diacritic count = %d\n"
-			 "\n%s'",
-			 image_id, image_id, placement_id, placement_id,
-			 tgetimgcol(&g), tgetimgrow(&g),
-			 tgetisclassicplaceholder(&g) ? "classic" : "unicode",
-			 tgetimgdiacriticcount(&g), placement_descr);
-	if (len > 511) {
-		fprintf(stderr, "error: command too long: %s\n", command);
-		return;
-	}
-	if (system(command) != 0) {
-		fprintf(stderr, "error: could not execute command %s\n",
-			command);
+	if (g.mode & ATTR_IMAGE) {
+		uint32_t image_id = tgetimgid(&g);
+		fprintf(stderr, "Clicked on placeholder %u/%u, x=%d, y=%d\n",
+			image_id, tgetimgplacementid(&g), tgetimgcol(&g),
+			tgetimgrow(&g));
+		char stcommand[256] = {0};
+		size_t len = snprintf(stcommand, sizeof(stcommand), "%s -e less", argv0);
+		if (len > sizeof(stcommand) - 1) {
+			fprintf(stderr, "Executable name too long: %s\n",
+				argv0);
+			return;
+		}
+		gr_show_image_info(image_id, tgetimgplacementid(&g),
+				   tgetimgcol(&g), tgetimgrow(&g),
+				   tgetisclassicplaceholder(&g),
+				   tgetimgdiacriticcount(&g), argv0);
 	}
 }
 
