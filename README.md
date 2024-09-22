@@ -3,13 +3,9 @@
 This is a fork of [st](https://st.suckless.org/) that implements a subset of
 [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/).
 
-**I've recently switched to XRender for displaying images. There might be issues,
-if you encounter any, try the legacy branch
-[graphics-legacy](https://github.com/sergei-grechanik/st-graphics/tree/graphics-legacy)
-(no amimation support).**
-
 If you want this formatted as a single patch, take the last commit from this
-branch: [graphics-squashed](https://github.com/sergei-grechanik/st-graphics/tree/graphics-squashed).
+branch: [graphics-squashed](https://github.com/sergei-grechanik/st-graphics/tree/graphics-squashed)
+(may be slightly outdated).
 
 ![Viewing images with icat-mini.sh in tmux in st with alpha patch](https://github.com/sergei-grechanik/st-graphics/assets/1084979/039e5d22-f831-4dbd-a10d-58715474c221)
 ![Animation](https://github.com/user-attachments/assets/4d4c056d-47bd-4e2a-b0e0-8ad80e4c25d7)
@@ -120,7 +116,7 @@ features.
 - Kitty's icat (including from within tmux).
 - [termpdf](https://github.com/dsanson/termpdf.py)
 - [ranger](https://github.com/ranger/ranger) - I had to explicitly set
-  `TERM=kitty`. This should be fixed in ranger of course.
+  `TERM=kitty`.
 - [tpix](https://github.com/jesvedberg/tpix)
 - [pixcat](https://github.com/mirukana/pixcat) (modulo some unsupported keys
   that are currently ignored).
@@ -129,6 +125,8 @@ features.
 - [timg](https://github.com/hzeller/timg) - I had to explicitly pass `-pk`
   (i.e. `timg -pk <image>`). If your timg is fresh enough, it even works in
   tmux!
+- [yazi](https://github.com/sxyazi/yazi) - works if you run it as
+  `TERM="xterm-kitty" yazi`.
 
 ### Apps that sort of work
 - [hologram.nvim](https://github.com/edluffy/hologram.nvim) - There are some
@@ -170,3 +168,6 @@ Patches that I have tried to apply together with graphics:
 - [Background Image](https://st.suckless.org/patches/background_image) - seems
   to work, see
   [this branch](https://github.com/sergei-grechanik/st-graphics/tree/graphics-with-background-image).
+- [Ligatures](https://st.suckless.org/patches/ligatures) - seems to work, but it
+  required some minor modifications. See
+  [this branch](https://github.com/sergei-grechanik/st-graphics/tree/graphics-with-ligatures).
