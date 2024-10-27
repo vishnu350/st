@@ -373,10 +373,10 @@ static uint64_t global_command_counter = 0;
 /// The next redraw times for each row of the terminal. Used for animations.
 /// 0 means no redraw is scheduled.
 static kvec_t(Milliseconds) next_redraw_times = {0, 0, NULL};
-/// The number of files loaded in the current redraw cycle.
-static int this_redraw_cycle_loaded_files = 0;
-/// The number of pixmaps loaded in the current redraw cycle.
-static int this_redraw_cycle_loaded_pixmaps = 0;
+/// The number of files loaded in the current redraw cycle or command execution.
+static int debug_loaded_files_counter = 0;
+/// The number of pixmaps loaded in the current redraw cycle or command execution.
+static int debug_loaded_pixmaps_counter = 0;
 
 /// The directory where the cache files are stored.
 static char cache_dir[MAX_FILENAME_SIZE - 16];
@@ -1322,10 +1322,11 @@ static void gr_check_limits() {
 		}
 	}
 	if (changed) {
+		Milliseconds end = gr_now_ms();
 		GR_LOG("After cleaning:  ram: %ld KiB  disk: %ld KiB  "
-		       "img count: %d  placement count: %d\n",
+		       "img count: %d  placement count: %d  Took %ld ms\n",
 		       images_ram_size / 1024, images_disk_size / 1024,
-		       kh_size(images), total_placement_count);
+		       kh_size(images), total_placement_count, end - now);
 	}
 	kv_destroy(images_sorted);
 	kv_destroy(placements_sorted);
@@ -1581,6 +1582,8 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 	}
 	frame->status = STATUS_RAM_LOADING_IN_PROGRESS;
 
+	Milliseconds loading_start = gr_now_ms();
+
 	// Load the background frame if needed. Hopefully it's not recursive.
 	ImageFrame *bg_frame = NULL;
 	if (frame->background_frame_index) {
@@ -1617,7 +1620,7 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 	if (frame->format == 32 || frame->format == 24 ||
 	    (!frame_data_image && frame->format == 0))
 		frame_data_image = gr_load_raw_pixel_data(frame, filename);
-	this_redraw_cycle_loaded_files++;
+	debug_loaded_files_counter++;
 
 	if (!frame_data_image) {
 		if (frame->status != STATUS_RAM_LOADING_ERROR) {
@@ -1692,9 +1695,12 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 	images_ram_size += gr_frame_current_ram_size(frame);
 	frame->status = STATUS_RAM_LOADING_SUCCESS;
 
-	GR_LOG("After loading image %u frame %d ram: %ld KiB  (+ %u KiB)\n",
-	       frame->image->image_id, frame->index,
-	       images_ram_size / 1024, gr_frame_current_ram_size(frame) / 1024);
+	Milliseconds loading_end = gr_now_ms();
+	GR_LOG("After loading image %u frame %d ram: %ld KiB  (+ %u KiB)  Took "
+	       "%ld ms\n",
+	       frame->image->image_id, frame->index, images_ram_size / 1024,
+	       gr_frame_current_ram_size(frame) / 1024,
+	       loading_end - loading_start);
 }
 
 /// Premultiplies the alpha channel of the image data. The data is an array of
@@ -1867,7 +1873,7 @@ Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
 	// Assign the pixmap to the frame and increase the ram size.
 	gr_set_frame_pixmap(placement, frameidx, pixmap);
 	images_ram_size += gr_placement_single_frame_ram_size(placement);
-	this_redraw_cycle_loaded_pixmaps++;
+	debug_loaded_pixmaps_counter++;
 
 	GR_LOG("After loading placement %u/%u frame %d ram: %ld KiB  (+ %u "
 	       "KiB)\n",
@@ -2443,8 +2449,8 @@ static int gr_getrectbottom(ImageRect *rect) {
 void gr_start_drawing(Drawable buf, int cw, int ch) {
 	current_cw = cw;
 	current_ch = ch;
-	this_redraw_cycle_loaded_files = 0;
-	this_redraw_cycle_loaded_pixmaps = 0;
+	debug_loaded_files_counter = 0;
+	debug_loaded_pixmaps_counter = 0;
 	drawing_start_time = gr_now_ms();
 	imlib_context_set_drawable(buf);
 }
@@ -2503,8 +2509,8 @@ void gr_finish_drawing(Drawable buf) {
 
 		if (milliseconds > 0) {
 			fprintf(stderr, "%s  (loaded %d files, %d pixmaps)\n",
-				info, this_redraw_cycle_loaded_files,
-				this_redraw_cycle_loaded_pixmaps);
+				info, debug_loaded_files_counter,
+				debug_loaded_pixmaps_counter);
 		}
 	}
 
@@ -3634,10 +3640,13 @@ int gr_parse_command(char *buf, size_t len) {
 	if (buf[0] != 'G')
 		return 0;
 
-	memset(&graphics_command_result, 0, sizeof(GraphicsCommandResult));
-
+	Milliseconds command_start_time = gr_now_ms();
+	debug_loaded_files_counter = 0;
+	debug_loaded_pixmaps_counter = 0;
 	global_command_counter++;
 	GR_LOG("### Command %lu: %.80s\n", global_command_counter, buf);
+
+	memset(&graphics_command_result, 0, sizeof(GraphicsCommandResult));
 
 	// Eat the 'G'.
 	++buf;
@@ -3752,6 +3761,11 @@ int gr_parse_command(char *buf, size_t len) {
 		if (!graphics_command_result.error || cmd.quiet >= 2)
 			graphics_command_result.response[0] = '\0';
 	}
+
+	Milliseconds command_end_time = gr_now_ms();
+	GR_LOG("Command %lu took %ld ms  (loaded %d files, %d pixmaps)\n\n",
+	       global_command_counter, command_end_time - command_start_time,
+	       debug_loaded_files_counter, debug_loaded_pixmaps_counter);
 
 	return 1;
 }
