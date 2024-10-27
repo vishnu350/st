@@ -1234,10 +1234,11 @@ gr_get_unloadable_objects_sorted_by_score(Milliseconds now) {
 	ImagePlacement *placement = NULL;
 	kh_foreach_value(images, img, {
 		foreach_frame(*img, frame, {
-			if (!frame->imlib_object)
-				continue;
-			kv_push(UnloadableObject, objects,
-				gr_unloadable_object_for_frame(now, frame));
+			if (frame->imlib_object) {
+				kv_push(UnloadableObject, objects,
+					gr_unloadable_object_for_frame(now,
+								       frame));
+			}
 			int frameidx = frame->index;
 			kh_foreach_value(img->placements, placement, {
 				if (!gr_get_frame_pixmap(placement, frameidx))
