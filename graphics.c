@@ -1528,15 +1528,12 @@ static Imlib_Image gr_load_raw_pixel_data(ImageFrame *frame,
 	imlib_image_set_has_alpha(1);
 	DATA32* data = imlib_image_get_data();
 
-	// The default format is 32.
-	int format = frame->format ? frame->format : 32;
-
 	if (frame->compression == 0) {
-		gr_load_raw_pixel_data_uncompressed(data, file, format,
+		gr_load_raw_pixel_data_uncompressed(data, file, frame->format,
 						    total_pixels);
 	} else {
-		int ret = gr_load_raw_pixel_data_compressed(data, file, format,
-							    total_pixels);
+		int ret = gr_load_raw_pixel_data_compressed(
+			data, file, frame->format, total_pixels);
 		if (ret != 0) {
 			imlib_image_put_back_data(data);
 			imlib_free_image();
@@ -1615,10 +1612,9 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 	char filename[MAX_FILENAME_SIZE];
 	gr_get_frame_filename(frame, filename, MAX_FILENAME_SIZE);
 	GR_LOG("Loading image: %s\n", sanitized_filename(filename));
-	if (frame->format == 100 || frame->format == 0)
+	if (frame->format == 100)
 		frame_data_image = imlib_load_image(filename);
-	if (frame->format == 32 || frame->format == 24 ||
-	    (!frame_data_image && frame->format == 0))
+	if (frame->format == 32 || frame->format == 24)
 		frame_data_image = gr_load_raw_pixel_data(frame, filename);
 	debug_loaded_files_counter++;
 
@@ -3062,7 +3058,8 @@ static ImageFrame *gr_new_image_or_frame_from_command(GraphicsCommand *cmd) {
 	ImageFrame *frame = gr_append_new_frame(img);
 	// Initialize the frame.
 	frame->expected_size = cmd->size;
-	frame->format = cmd->format;
+	// The default format is 32.
+	frame->format = cmd->format ? cmd->format : 32;
 	frame->compression = cmd->compression;
 	frame->background_color = cmd->background_color;
 	frame->background_frame_index = cmd->background_frame;
