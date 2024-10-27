@@ -31,23 +31,27 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "graphics.h"
+
 #include <zlib.h>
 #include <Imlib2.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrender.h>
+
 #include <assert.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <spawn.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
 
-#include "graphics.h"
 #include "khash.h"
 #include "kvec.h"
 
@@ -113,14 +117,16 @@ enum ImageUploadingFailure {
 	ERROR_CANNOT_OPEN_CACHED_FILE = 2,
 	ERROR_UNEXPECTED_SIZE = 3,
 	ERROR_CANNOT_COPY_FILE = 4,
+	ERROR_CANNOT_OPEN_SHM = 5,
 };
 
-const char *image_uploading_failure_strings[5] = {
+const char *image_uploading_failure_strings[6] = {
 	"NO_ERROR",
 	"ERROR_OVER_SIZE_LIMIT",
 	"ERROR_CANNOT_OPEN_CACHED_FILE",
 	"ERROR_UNEXPECTED_SIZE",
 	"ERROR_CANNOT_COPY_FILE",
+	"ERROR_CANNOT_OPEN_SHM",
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2657,6 +2663,8 @@ typedef struct {
 	char is_direct_transmission_continuation;
 	/// 'S=', used to check the size of uploaded data.
 	int size;
+	/// The offset of the frame image data in the shared memory ('O=').
+	unsigned offset;
 	/// 'U=', whether it's a virtual placement for Unicode placeholders.
 	int virtual;
 	/// 'C=', if true, do not move the cursor when displaying this placement
@@ -2888,6 +2896,31 @@ static void gr_schedule_image_redraw(Image *img) {
 	gr_schedule_image_redraw_by_id(img->image_id);
 }
 
+/// Appends `data` to the on-disk cache file of the frame `frame`. Creates the
+/// file if it doesn't exist. Updates `frame->disk_size` and the total disk
+/// size. Returns 1 on success and 0 on failure.
+static int gr_append_raw_data_to_file(ImageFrame *frame, const char *data,
+				      size_t data_size) {
+	// If there is no open file corresponding to the image, create it.
+	if (!frame->open_file) {
+		gr_make_sure_tmpdir_exists();
+		char filename[MAX_FILENAME_SIZE];
+		gr_get_frame_filename(frame, filename, MAX_FILENAME_SIZE);
+		FILE *file = fopen(filename, frame->disk_size ? "a" : "w");
+		if (!file)
+			return 0;
+		frame->open_file = file;
+	}
+
+	// Write data to the file and update disk size variables.
+	fwrite(data, 1, data_size, frame->open_file);
+	frame->disk_size += data_size;
+	frame->image->total_disk_size += data_size;
+	images_disk_size += data_size;
+	gr_touch_frame(frame);
+	return 1;
+}
+
 /// Appends data from `payload` to the frame `frame` when using direct
 /// transmission. Note that we report errors only for the final command
 /// (`!more`) to avoid spamming the client. If the frame is not specified, use
@@ -2938,29 +2971,15 @@ static void gr_append_data(ImageFrame *frame, const char *payload, int more) {
 		return;
 	}
 
-	// If there is no open file corresponding to the image, create it.
-	if (!frame->open_file) {
-		gr_make_sure_tmpdir_exists();
-		char filename[MAX_FILENAME_SIZE];
-		gr_get_frame_filename(frame, filename, MAX_FILENAME_SIZE);
-		FILE *file = fopen(filename, frame->disk_size ? "a" : "w");
-		if (!file) {
-			frame->status = STATUS_UPLOADING_ERROR;
-			frame->uploading_failure = ERROR_CANNOT_OPEN_CACHED_FILE;
-			if (!more)
-				gr_reportuploaderror(frame);
-			return;
-		}
-		frame->open_file = file;
+	// Append the data to the file.
+	if (!gr_append_raw_data_to_file(frame, data, data_size)) {
+		frame->status = STATUS_UPLOADING_ERROR;
+		frame->uploading_failure = ERROR_CANNOT_OPEN_CACHED_FILE;
+		if (!more)
+			gr_reportuploaderror(frame);
+		return;
 	}
-
-	// Write data to the file and update disk size variables.
-	fwrite(data, 1, data_size, frame->open_file);
 	free(data);
-	frame->disk_size += data_size;
-	frame->image->total_disk_size += data_size;
-	images_disk_size += data_size;
-	gr_touch_frame(frame);
 
 	if (more) {
 		current_upload_image_id = frame->image->image_id;
@@ -3071,6 +3090,15 @@ static ImageFrame *gr_new_image_or_frame_from_command(GraphicsCommand *cmd) {
 	if (cmd->action == 'f') {
 		frame->x = cmd->frame_dst_pix_x;
 		frame->y = cmd->frame_dst_pix_y;
+	}
+	// If the expected size is not specified, we can infer it from the pixel
+	// width and height if the format is 24 or 32 and there is no
+	// compression. This is required for the shared memory transmission.
+	if (!frame->expected_size && !frame->compression &&
+	    (frame->format == 24 || frame->format == 32)) {
+		frame->expected_size = frame->data_pix_width *
+				       frame->data_pix_height *
+				       (frame->format / 8);
 	}
 	// We save the quietness information in the frame because for direct
 	// transmission subsequent transmission command won't contain this info.
@@ -3222,6 +3250,70 @@ static ImageFrame *gr_handle_transmit_command(GraphicsCommand *cmd) {
 		frame->status = STATUS_UPLOADING;
 		// Start appending data.
 		gr_append_data(frame, cmd->payload, cmd->more);
+	} else if (cmd->transmission_medium == 's') {
+		// Shared memory transmission.
+		// Create a new image or a new frame of an existing image.
+		frame = gr_new_image_or_frame_from_command(cmd);
+		if (!frame)
+			return NULL;
+		last_image_id = frame->image->image_id;
+		// Check the data size limit.
+		if (frame->expected_size > graphics_max_single_image_file_size) {
+			frame->uploading_failure = ERROR_OVER_SIZE_LIMIT;
+			gr_reportuploaderror(frame);
+			return NULL;
+		}
+		// Decode the filename.
+		char *original_filename = gr_base64dec(cmd->payload, NULL);
+		GR_LOG("Loading image from shared memory %s\n",
+		       sanitized_filename(original_filename));
+		// Open the shared memory object.
+		int fd = shm_open(original_filename, O_RDONLY, 0);
+		if (fd == -1) {
+			gr_reporterror_cmd(cmd,
+					   "EBADF: %s", strerror(errno));
+			frame->status = STATUS_UPLOADING_ERROR;
+			frame->uploading_failure = ERROR_CANNOT_OPEN_SHM;
+			fprintf(stderr, "shm_open failed\n");
+			free(original_filename);
+			return frame;
+		}
+		free(original_filename);
+		// Map the shared memory object.
+		void *data = mmap(NULL, frame->expected_size, PROT_READ,
+				  MAP_SHARED, fd, cmd->offset);
+		if (data == MAP_FAILED) {
+			gr_reporterror_cmd(cmd,
+					   "EBADF: %s", strerror(errno));
+			frame->status = STATUS_UPLOADING_ERROR;
+			frame->uploading_failure = ERROR_CANNOT_OPEN_SHM;
+			fprintf(stderr, "mmap failed\n");
+			close(fd);
+			return frame;
+		}
+		close(fd);
+		// Append the data to the cache file.
+		if (gr_append_raw_data_to_file(frame, data,
+					       frame->expected_size)) {
+			frame->status = STATUS_UPLOADING_SUCCESS;
+		} else {
+			frame->status = STATUS_UPLOADING_ERROR;
+			frame->uploading_failure =
+				ERROR_CANNOT_OPEN_CACHED_FILE;
+			gr_reportuploaderror(frame);
+		}
+		// Close the cache file.
+		if (frame->open_file) {
+			fclose(frame->open_file);
+			frame->open_file = NULL;
+		}
+		// Unmap the data
+		if (munmap(data, frame->expected_size) != 0)
+			fprintf(stderr, "munmap failed: %s\n", strerror(errno));
+		// Try to load and redraw existing instances.
+		gr_schedule_image_redraw(frame->image);
+		frame = gr_loadimage_and_report(frame);
+		gr_check_limits();
 	} else {
 		gr_reporterror_cmd(
 			cmd,
@@ -3599,6 +3691,9 @@ static void gr_set_keyvalue(GraphicsCommand *cmd, KeyAndValue *kv) {
 		break;
 	case 'S':
 		cmd->size = num;
+		break;
+	case 'O':
+		cmd->offset = num;
 		break;
 	case 'U':
 		cmd->virtual = num;
