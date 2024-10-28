@@ -1585,8 +1585,6 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 	}
 	frame->status = STATUS_RAM_LOADING_IN_PROGRESS;
 
-	Milliseconds loading_start = gr_now_ms();
-
 	// Load the background frame if needed. Hopefully it's not recursive.
 	ImageFrame *bg_frame = NULL;
 	if (frame->background_frame_index) {
@@ -1612,6 +1610,9 @@ static void gr_load_imlib_object(ImageFrame *frame) {
 			return;
 		}
 	}
+
+	// We exclude background frames from the time to load the frame.
+	Milliseconds loading_start = gr_now_ms();
 
 	// Load the frame data image.
 	Imlib_Image frame_data_image = NULL;
@@ -1728,6 +1729,7 @@ static void gr_premultiply_alpha(DATA32 *data, size_t num_pixels) {
 /// pixels. If the placement is already loaded, it will be reloaded only if the
 /// cell dimensions have changed.
 Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
+	Milliseconds loading_start = gr_now_ms();
 	Image *img = placement->image;
 	ImageFrame *frame = gr_get_frame(img, frameidx);
 
@@ -1877,11 +1879,13 @@ Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
 	images_ram_size += gr_placement_single_frame_ram_size(placement);
 	debug_loaded_pixmaps_counter++;
 
+	Milliseconds loading_end = gr_now_ms();
 	GR_LOG("After loading placement %u/%u frame %d ram: %ld KiB  (+ %u "
-	       "KiB)\n",
+	       "KiB)  Took %ld ms\n",
 	       frame->image->image_id, placement->placement_id, frame->index,
 	       images_ram_size / 1024,
-	       gr_placement_single_frame_ram_size(placement) / 1024);
+	       gr_placement_single_frame_ram_size(placement) / 1024,
+	       loading_end - loading_start);
 
 	// Free up ram if needed, but keep the pixmap we've loaded no matter
 	// what.
