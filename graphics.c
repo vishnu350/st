@@ -2659,8 +2659,6 @@ typedef struct {
 	uint32_t placement_id;
 	/// 'm=', may be 0 or 1.
 	int more;
-	/// True if either 'm=0' or 'm=1' is specified.
-	char is_data_transmission;
 	/// True if turns out that this command is a continuation of a data
 	/// transmission and not the first one for this image. Populated by
 	/// `gr_handle_transmit_command`.
@@ -3241,11 +3239,6 @@ static ImageFrame *gr_handle_transmit_command(GraphicsCommand *cmd) {
 			gr_append_data(frame, cmd->payload, cmd->more);
 			return frame;
 		}
-		// If no action is specified, it's not the first transmission
-		// command. If we couldn't find the image, something went wrong
-		// and we should just drop this command.
-		if (cmd->action == 0)
-			return NULL;
 		// Otherwise create a new image or frame structure.
 		frame = gr_new_image_or_frame_from_command(cmd);
 		if (!frame)
@@ -3522,14 +3515,7 @@ static void gr_handle_command(GraphicsCommand *cmd) {
 	ImageFrame *frame = NULL;
 	switch (cmd->action) {
 	case 0:
-		// If no action is specified, it may be a data transmission
-		// command if 'm=' is specified.
-		if (cmd->is_data_transmission) {
-			gr_handle_transmit_command(cmd);
-			break;
-		}
-		gr_reporterror_cmd(cmd, "EINVAL: no action specified");
-		break;
+		// If no action is specified, it is data transmission.
 	case 't':
 	case 'q':
 	case 'f':
@@ -3690,7 +3676,6 @@ static void gr_set_keyvalue(GraphicsCommand *cmd, KeyAndValue *kv) {
 			cmd->rows = num;
 		break;
 	case 'm':
-		cmd->is_data_transmission = 1;
 		cmd->more = num;
 		break;
 	case 'S':
