@@ -1,5 +1,5 @@
 diff --git a/config.def.h b/config.def.h
-index 2cd740a..019a4e1 100644
+index 91ab8ca..6af616e 100644
 --- a/config.def.h
 +++ b/config.def.h
 @@ -93,6 +93,9 @@ char *termname = "st-256color";
@@ -7,13 +7,13 @@ index 2cd740a..019a4e1 100644
  unsigned int tabspaces = 8;
  
 +/* bg opacity */
-+float alpha = 0.88;
++float alpha = 0.95;
 +
  /* Terminal colors (16 first used in escape sequence) */
  static const char *colorname[] = {
  	/* 8 normal colors */
 diff --git a/config.mk b/config.mk
-index 7f35f71..7c3bf9b 100644
+index 4c4c5d5..0114bad 100644
 --- a/config.mk
 +++ b/config.mk
 @@ -16,7 +16,7 @@ PKG_CONFIG = pkg-config
@@ -26,16 +26,16 @@ index 7f35f71..7c3bf9b 100644
         `$(PKG_CONFIG) --libs freetype2`
  
 diff --git a/st.h b/st.h
-index fd3b0d8..9f91e2a 100644
+index 519b9bd..8bb533d 100644
 --- a/st.h
 +++ b/st.h
-@@ -124,3 +124,4 @@ extern unsigned int tabspaces;
+@@ -126,3 +126,4 @@ extern unsigned int tabspaces;
  extern unsigned int defaultfg;
  extern unsigned int defaultbg;
  extern unsigned int defaultcs;
 +extern float alpha;
 diff --git a/x.c b/x.c
-index b36fb8c..6e4520f 100644
+index 8a16faa..ddf4178 100644
 --- a/x.c
 +++ b/x.c
 @@ -105,6 +105,7 @@ typedef struct {
@@ -54,17 +54,7 @@ index b36fb8c..6e4520f 100644
  static char *opt_class = NULL;
  static char **opt_cmd  = NULL;
  static char *opt_embed = NULL;
-@@ -254,6 +256,9 @@ static char *opt_title = NULL;
- 
- static uint buttons; /* bit field of pressed buttons */
- 
-+static Cursor cursor;
-+static XColor xmousefg, xmousebg;
-+
- void
- clipcopy(const Arg *dummy)
- {
-@@ -752,7 +757,7 @@ xresize(int col, int row)
+@@ -736,7 +738,7 @@ xresize(int col, int row)
  
  	XFreePixmap(xw.dpy, xw.buf);
  	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
@@ -73,7 +63,7 @@ index b36fb8c..6e4520f 100644
  	XftDrawChange(xw.draw, xw.buf);
  	xclear(0, 0, win.w, win.h);
  
-@@ -812,6 +817,13 @@ xloadcols(void)
+@@ -796,6 +798,13 @@ xloadcols(void)
  			else
  				die("could not allocate color %d\n", i);
  		}
@@ -87,14 +77,10 @@ index b36fb8c..6e4520f 100644
  	loaded = 1;
  }
  
-@@ -1130,15 +1142,25 @@ void
- xinit(int cols, int rows)
- {
- 	XGCValues gcvalues;
--	Cursor cursor;
+@@ -1118,11 +1127,23 @@ xinit(int cols, int rows)
  	Window parent;
  	pid_t thispid = getpid();
--	XColor xmousefg, xmousebg;
+ 	XColor xmousefg, xmousebg;
 +	XWindowAttributes attr;
 +	XVisualInfo vis;
  
@@ -116,7 +102,7 @@ index b36fb8c..6e4520f 100644
  
  	/* font */
  	if (!FcInit())
-@@ -1148,7 +1170,7 @@ xinit(int cols, int rows)
+@@ -1132,7 +1153,7 @@ xinit(int cols, int rows)
  	xloadfonts(usedfont, 0);
  
  	/* colors */
@@ -125,7 +111,7 @@ index b36fb8c..6e4520f 100644
  	xloadcols();
  
  	/* adjust fixed window geometry */
-@@ -1168,19 +1190,15 @@ xinit(int cols, int rows)
+@@ -1152,19 +1173,15 @@ xinit(int cols, int rows)
  		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
  	xw.attrs.colormap = xw.cmap;
  
@@ -148,20 +134,7 @@ index b36fb8c..6e4520f 100644
  	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
  	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
  
-@@ -1730,6 +1748,12 @@ xsetmode(int set, unsigned int flags)
- {
- 	int mode = win.mode;
- 	MODBIT(win.mode, set, flags);
-+        if (flags & MODE_MOUSE) {
-+                if (win.mode & MODE_MOUSE)
-+                        XUndefineCursor(xw.dpy, xw.win);
-+                else
-+                        XDefineCursor(xw.dpy, xw.win, cursor);
-+        }
- 	if ((win.mode & MODE_REVERSE) != (mode & MODE_REVERSE))
- 		redraw();
- }
-@@ -2038,6 +2062,9 @@ main(int argc, char *argv[])
+@@ -2019,6 +2036,9 @@ main(int argc, char *argv[])
  	case 'a':
  		allowaltscreen = 0;
  		break;
