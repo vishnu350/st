@@ -3024,8 +3024,7 @@ static void gr_append_data(ImageFrame *frame, const char *payload, int more) {
 	gr_check_limits();
 }
 
-/// Finds the image either by id or by number specified in the command and sets
-/// the image_id of `cmd` if the image was found.
+/// Finds the image either by id or by number specified in the command.
 static Image *gr_find_image_for_command(GraphicsCommand *cmd) {
 	if (cmd->image_id)
 		return gr_find_image(cmd->image_id);
@@ -3036,8 +3035,6 @@ static Image *gr_find_image_for_command(GraphicsCommand *cmd) {
 		img = gr_find_image(last_image_id);
 	else
 		img = gr_find_image_by_number(cmd->image_number);
-	if (img)
-		cmd->image_id = img->image_id;
 	return img;
 }
 
@@ -3056,7 +3053,9 @@ static ImageFrame *gr_new_image_or_frame_from_command(GraphicsCommand *cmd) {
 		// If it's a frame transmission action, there must be an
 		// existing image.
 		img = gr_find_image_for_command(cmd);
-		if (!img) {
+		if (img) {
+			cmd->image_id = img->image_id;
+		} else {
 			gr_reporterror_cmd(cmd, "ENOENT: image not found");
 			return NULL;
 		}
@@ -3236,6 +3235,7 @@ static ImageFrame *gr_handle_transmit_command(GraphicsCommand *cmd) {
 		if (frame && frame->status == STATUS_UPLOADING) {
 			// This is a continuation of the previous transmission.
 			cmd->is_direct_transmission_continuation = 1;
+			cmd->image_id = frame->image->image_id;
 			gr_append_data(frame, cmd->payload, cmd->more);
 			return frame;
 		}
@@ -3355,7 +3355,9 @@ static void gr_handle_put_command(GraphicsCommand *cmd) {
 
 	// Find the image with the id or number.
 	Image *img = gr_find_image_for_command(cmd);
-	if (!img) {
+	if (img) {
+		cmd->image_id = img->image_id;
+	} else {
 		gr_reporterror_cmd(cmd, "ENOENT: image not found");
 		return;
 	}
@@ -3483,7 +3485,9 @@ static void gr_handle_animation_control_command(GraphicsCommand *cmd) {
 
 	// Find the image with the id or number.
 	Image *img = gr_find_image_for_command(cmd);
-	if (!img) {
+	if (img) {
+		cmd->image_id = img->image_id;
+	} else {
 		gr_reporterror_cmd(cmd, "ENOENT: image not found");
 		return;
 	}
