@@ -3327,7 +3327,7 @@ static ImageFrame *gr_handle_transmit_command(GraphicsCommand *cmd) {
 			frame->open_file = NULL;
 		}
 		// Unmap the data
-		if (munmap(data, frame->expected_size) != 0)
+		if (munmap(data, size) != 0)
 			fprintf(stderr, "munmap failed: %s\n", strerror(errno));
 		// Try to load and redraw existing instances.
 		gr_schedule_image_redraw(frame->image);
