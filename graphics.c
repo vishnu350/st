@@ -1859,10 +1859,25 @@ Pixmap gr_load_pixmap(ImagePlacement *placement, int frameidx, int cw, int ch) {
 	if (!drawable)
 		drawable = DefaultRootWindow(disp);
 	pixmap = XCreatePixmap(disp, drawable, scaled_w, scaled_h, 32);
-	XVisualInfo visinfo;
-	XMatchVisualInfo(disp, DefaultScreen(disp), 32, TrueColor, &visinfo);
+	XVisualInfo visinfo = {0};
+	Status visual_found = XMatchVisualInfo(disp, DefaultScreen(disp), 32,
+					       TrueColor, &visinfo) ||
+			      XMatchVisualInfo(disp, DefaultScreen(disp), 24,
+					       TrueColor, &visinfo);
+	if (!visual_found) {
+		fprintf(stderr,
+			"error: could not find 32-bit TrueColor visual\n");
+		// Proceed anyway.
+		visinfo.visual = NULL;
+	}
 	XImage *ximage = XCreateImage(disp, visinfo.visual, 32, ZPixmap, 0,
 				      (char *)data, scaled_w, scaled_h, 32, 0);
+	if (!ximage) {
+		fprintf(stderr, "error: could not create XImage\n");
+		imlib_image_put_back_data(data);
+		imlib_free_image();
+		return 0;
+	}
 	GC gc = XCreateGC(disp, pixmap, 0, NULL);
 	XPutImage(disp, pixmap, gc, ximage, 0, 0, 0, 0, scaled_w,
 		  scaled_h);
