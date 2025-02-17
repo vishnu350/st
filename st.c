@@ -2706,6 +2706,15 @@ check_control_code:
 	if (selected(term.c.x, term.c.y))
 		selclear();
 
+	// wcwidth is broken on some systems, set the width to 0 if it's a known
+	// diacritic used for images.
+	uint16_t num = diacritic_to_num(u);
+	if (num != 0)
+		width = 0;
+	// Set the width to 1 if it's an image placeholder character.
+	if (u == IMAGE_PLACEHOLDER_CHAR || u == IMAGE_PLACEHOLDER_CHAR_OLD)
+		width = 1;
+
 	if (width == 0) {
 		// It's probably a combining char. Combining characters are not
 		// supported, so we just ignore them, unless it denotes the row and
@@ -2718,7 +2727,6 @@ check_control_code:
 			gp = &term.line[term.c.y][term.c.x];
 		else
 			gp = &term.line[term.c.y][term.c.x-1];
-		uint16_t num = diacritic_to_num(u);
 		if (num && (gp->mode & ATTR_IMAGE)) {
 			unsigned diaccount = tgetimgdiacriticcount(gp);
 			if (diaccount == 0)
