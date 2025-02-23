@@ -36,8 +36,6 @@
 
 #define _POSIX_C_SOURCE 200809L
 
-#include "graphics.h"
-
 #include <zlib.h>
 #include <Imlib2.h>
 #include <X11/Xlib.h>
@@ -59,6 +57,9 @@
 
 #include "khash.h"
 #include "kvec.h"
+
+#include "st.h"
+#include "graphics.h"
 
 extern char **environ;
 
@@ -300,6 +301,10 @@ typedef struct ImagePlacement {
 	/// If true, do not move the cursor when displaying this placement
 	/// (non-virtual placements only).
 	char do_not_move_cursor;
+	/// The text underneath this placement, valid only for classic
+	/// placements. On deletion, the text is restored. This is a malloced
+	/// array of rows*cols Glyphs.
+	Glyph *text_underneath;
 } ImagePlacement;
 
 /// A rectangular piece of an image to be drawn.
@@ -351,6 +356,7 @@ typedef struct {
 static Image *gr_find_image(uint32_t image_id);
 static void gr_get_frame_filename(ImageFrame *frame, char *out, size_t max_len);
 static void gr_delete_image(Image *img);
+static void gr_erase_placement(ImagePlacement *placement);
 static void gr_check_limits();
 static char *gr_base64dec(const char *src, size_t *size);
 static void sanitize_str(char *str, size_t max_len);
@@ -573,6 +579,23 @@ static ImagePlacement *gr_find_image_and_placement(uint32_t image_id,
 	return gr_find_placement(gr_find_image(image_id), placement_id);
 }
 
+/// Returns a pointer to the glyph under the classic placement with `image_id`
+/// and `placement_id` at `col` and `row` (1-based). May return NULL if the
+/// underneath text is unknown.
+Glyph *gr_get_glyph_underneath_image(uint32_t image_id, uint32_t placement_id,
+				     int col, int row) {
+	ImagePlacement *placement =
+		gr_find_image_and_placement(image_id, placement_id);
+	if (!placement || !placement->text_underneath)
+		return NULL;
+	col--;
+	row--;
+	if (col < 0 || col >= placement->cols || row < 0 ||
+	    row >= placement->rows)
+		return NULL;
+	return &placement->text_underneath[row * placement->cols + col];
+}
+
 /// Writes the name of the on-disk cache file to `out`. `max_len` should be the
 /// size of `out`. The name will be something like
 /// "/tmp/st-images-xxx/img-ID-FRAME".
@@ -716,15 +739,20 @@ static void gr_delete_imagefiles(Image *img) {
 	});
 }
 
-/// Deletes the given placement: unloads, frees the object, but doesn't change
-/// the `placements` hash table.
+/// Deletes the given placement: unloads, frees the object, erases it from the
+/// screen in the classic case, but doesn't change the `placements` hash table.
 static void gr_delete_placement_keep_id(ImagePlacement *placement) {
 	if (!placement)
 		return;
 	GR_LOG("Deleting placement %u/%u\n", placement->image->image_id,
 	       placement->placement_id);
+	// Erase the placement from the screen if it's classic and there is some
+	// saved text underneath.
+	if (placement->text_underneath && !placement->virtual)
+		gr_erase_placement(placement);
 	gr_unload_placement(placement);
 	kv_destroy(placement->pixmaps_beyond_the_first);
+	free(placement->text_underneath);
 	free(placement);
 	total_placement_count--;
 }
@@ -765,8 +793,8 @@ static void gr_delete_image(Image *img) {
 	kh_del(id2image, images, k);
 }
 
-/// Deletes the given placement: unloads, frees the object, and also removes it
-/// from `placements`.
+/// Deletes the given placement: unloads, frees the object, erases from the
+/// screen (in the classic case), and also removes it from `placements`.
 static void gr_delete_placement(ImagePlacement *placement) {
 	if (!placement)
 		return;
@@ -2274,6 +2302,21 @@ void gr_show_image_info(uint32_t image_id, uint32_t placement_id,
 	ImagePlacement *placement = gr_find_placement(img, placement_id);
 	gr_dump_image_info(file, img, 0);
 	gr_dump_placement_info(file, placement, 0);
+	// The text underneath this particular cell.
+	if (placement && placement->text_underneath && imgcol >= 1 &&
+	    imgrow >= 1 && imgcol <= placement->cols &&
+	    imgrow <= placement->rows) {
+		fprintf(file, "Glyph underneath:\n");
+		Glyph *glyph =
+			&placement->text_underneath[(imgrow - 1) *
+							    placement->cols +
+						    imgcol - 1];
+		fprintf(file, "    rune = 0x%08X\n", glyph->u);
+		fprintf(file, "    bg = 0x%08X\n", glyph->bg);
+		fprintf(file, "    fg = 0x%08X\n", glyph->fg);
+		fprintf(file, "    decor = 0x%08X\n", glyph->decor);
+		fprintf(file, "    mode = 0x%08X\n", glyph->mode);
+	}
 	if (img) {
 		fprintf(file, "Frames:\n");
 		foreach_frame(*img, frame, {
@@ -2906,6 +2949,10 @@ static void gr_display_nonvirtual_placement(ImagePlacement *placement) {
 	graphics_command_result.placeholder.rows = placement->rows;
 	graphics_command_result.placeholder.do_not_move_cursor =
 		placement->do_not_move_cursor;
+	placement->text_underneath =
+		calloc(placement->rows * placement->cols, sizeof(Glyph));
+	graphics_command_result.placeholder.text_underneath =
+		placement->text_underneath;
 	GR_LOG("Creating a placeholder for %u/%u  %d x %d\n",
 	       placement->image->image_id, placement->placement_id,
 	       placement->cols, placement->rows);
@@ -3421,40 +3468,65 @@ static void gr_handle_put_command(GraphicsCommand *cmd) {
 typedef struct DeletionData {
 	uint32_t image_id;
 	uint32_t placement_id;
-	/// If true, delete the image object if there are no more placements.
-	char delete_image_if_no_ref;
+	/// Visible placement found during screen traversal that need to be
+	/// deleted. Each placement must occur only once in this vector.
+	ImagePlacementVec placements_to_delete;
 } DeletionData;
 
 /// The callback called for each cell to perform deletion.
-static int gr_deletion_callback(void *data, uint32_t image_id,
-					    uint32_t placement_id, int col,
-					    int row, char is_classic) {
+static int gr_deletion_callback(void *data, Glyph *gp) {
 	DeletionData *del_data = data;
 	// Leave unicode placeholders alone.
-	if (!is_classic)
+	if (!tgetisclassicplaceholder(gp))
 		return 0;
+	uint32_t image_id = tgetimgid(gp);
+	uint32_t placement_id = tgetimgplacementid(gp);
 	if (del_data->image_id && del_data->image_id != image_id)
 		return 0;
 	if (del_data->placement_id && del_data->placement_id != placement_id)
 		return 0;
-	Image *img = gr_find_image(image_id);
-	// If the image is already deleted, just erase the placeholder.
-	if (!img)
-		return 1;
-	// Delete the placement.
-	if (placement_id)
-		gr_delete_placement(gr_find_placement(img, placement_id));
-	// Delete the image if image deletion is requested (uppercase delete
-	// specifier) and there are no more placements.
-	if (del_data->delete_image_if_no_ref && kh_size(img->placements) == 0)
-		gr_delete_image(img);
+
+	ImagePlacement *placement = NULL;
+
+	// Record the placement to delete. We will actually delete it later.
+	for (int i = 0; i < kv_size(del_data->placements_to_delete); ++i) {
+		ImagePlacement *cand = kv_A(del_data->placements_to_delete, i);
+		if (cand->image->image_id == image_id &&
+		    cand->placement_id == placement_id) {
+			placement = cand;
+			break;
+		}
+	}
+	if (!placement) {
+		placement = gr_find_image_and_placement(image_id, placement_id);
+		if (placement) {
+			kv_push(ImagePlacement *,
+				del_data->placements_to_delete, placement);
+		}
+	}
+
+	// Restore the text underneath the placement if possible.
+	if (placement && placement->text_underneath) {
+		int row = tgetimgrow(gp) - 1;
+		int col = tgetimgcol(gp) - 1;
+		if (col >= 0 && row >= 0 && row < placement->rows &&
+		    col < placement->cols) {
+			*gp = placement->text_underneath[row * placement->cols +
+							 col];
+			return 1;
+		}
+	}
+
+	// Otherwise just erase the cell.
+	gp->mode = 0;
+	gp->u = ' ';
 	return 1;
 }
 
 /// Handles the delete command.
 static void gr_handle_delete_command(GraphicsCommand *cmd) {
 	DeletionData del_data = {0};
-	del_data.delete_image_if_no_ref = isupper(cmd->delete_specifier) != 0;
+	char delete_image_if_no_ref = isupper(cmd->delete_specifier) != 0;
 	char d = tolower(cmd->delete_specifier);
 
 	if (d == 'n') {
@@ -3464,6 +3536,8 @@ static void gr_handle_delete_command(GraphicsCommand *cmd) {
 			return;
 		del_data.image_id = img->image_id;
 	}
+
+	kv_init(del_data.placements_to_delete);
 
 	if (!d || d == 'a') {
 		// Delete all visible placements.
@@ -3477,15 +3551,10 @@ static void gr_handle_delete_command(GraphicsCommand *cmd) {
 			fprintf(stderr,
 				"ERROR: image id is not specified in the "
 				"delete command\n");
+			kv_destroy(del_data.placements_to_delete);
 			return;
 		}
 		del_data.placement_id = cmd->placement_id;
-		// NOTE: It's not very clear whether we should delete the image
-		// even if there are no _visible_ placements to delete. We do
-		// this because otherwise there is no way to delete an image
-		// with virtual placements in one command.
-		if (!del_data.placement_id && del_data.delete_image_if_no_ref)
-			gr_delete_image(gr_find_image(cmd->image_id));
 		gr_for_each_image_cell(gr_deletion_callback, &del_data);
 	} else {
 		fprintf(stderr,
@@ -3493,6 +3562,46 @@ static void gr_handle_delete_command(GraphicsCommand *cmd) {
 			"command is ignored.\n",
 			cmd->delete_specifier);
 	}
+
+	// Delete the placements we have collected and maybe images too.
+	for (int i = 0; i < kv_size(del_data.placements_to_delete); ++i) {
+		ImagePlacement *placement =
+			kv_A(del_data.placements_to_delete, i);
+		// Delete the text underneath the placement and set it to NULL
+		// to avoid erasing it from the screen again.
+		free(placement->text_underneath);
+		placement->text_underneath = NULL;
+		Image *img = placement->image;
+		gr_delete_placement(placement);
+		// Delete the image if image deletion is requested (uppercase
+		// delete specifier) and there are no more placements.
+		if (delete_image_if_no_ref && kh_size(img->placements) == 0)
+			gr_delete_image(img);
+	}
+
+	// NOTE: It's not very clear whether we should delete the image
+	// even if there are no _visible_ placements to delete. We do
+	// this because otherwise there is no way to delete an image
+	// with virtual placements in one command.
+	if (d == 'i' && !del_data.placement_id && delete_image_if_no_ref)
+		gr_delete_image(gr_find_image(cmd->image_id));
+
+	kv_destroy(del_data.placements_to_delete);
+}
+
+/// Clears the cells occupied by the placement. This is normally done when
+/// implicitly deleting a classic placement.
+static void gr_erase_placement(ImagePlacement *placement) {
+	DeletionData del_data = {0};
+	del_data.image_id = placement->image->image_id;
+	del_data.placement_id = placement->placement_id;
+	kv_init(del_data.placements_to_delete);
+	gr_for_each_image_cell(gr_deletion_callback, &del_data);
+	// Delete the text underneath the placement and set it to NULL
+	// to avoid erasing it from the screen again.
+	free(placement->text_underneath);
+	placement->text_underneath = NULL;
+	kv_destroy(del_data.placements_to_delete);
 }
 
 static void gr_handle_animation_control_command(GraphicsCommand *cmd) {

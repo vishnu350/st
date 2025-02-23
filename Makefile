@@ -17,7 +17,7 @@ config.h:
 
 st.o: config.h st.h win.h graphics.h
 x.o: arg.h config.h st.h win.h graphics.h
-graphics.c: graphics.h khash.h kvec.h
+graphics.c: graphics.h khash.h kvec.h st.h
 
 $(OBJ): config.h config.mk
 

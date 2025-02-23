@@ -1321,10 +1321,9 @@ tclearregion(int x1, int y1, int x2, int y2)
 /// Fills a rectangle area with an image placeholder. The starting point is the
 /// cursor. Adds empty lines if needed. The placeholder will be marked as
 /// classic.
-void
-tcreateimgplaceholder(uint32_t image_id, uint32_t placement_id,
-		      int cols, int rows, char do_not_move_cursor)
-{
+void tcreateimgplaceholder(uint32_t image_id, uint32_t placement_id, int cols,
+			   int rows, char do_not_move_cursor,
+			   Glyph *text_underneath) {
 	for (int row = 0; row < rows; ++row) {
 		int y = term.c.y;
 		term.dirty[y] = 1;
@@ -1335,6 +1334,25 @@ tcreateimgplaceholder(uint32_t image_id, uint32_t placement_id,
 			Glyph *gp = &term.line[y][x];
 			if (selected(x, y))
 				selclear();
+			if (text_underneath) {
+				Glyph *to_save = gp;
+				// If there is already a classic placeholder,
+				// use the text underneath it. This will leave
+				// holes in images, but at least we are
+				// guaranteed to restore the original text.
+				if (gp->mode & ATTR_IMAGE &&
+				    tgetisclassicplaceholder(gp)) {
+					Glyph *under =
+						gr_get_glyph_underneath_image(
+							tgetimgid(gp),
+							tgetimgplacementid(gp),
+							tgetimgcol(gp),
+							tgetimgrow(gp));
+					if (under)
+						to_save = under;
+				}
+				text_underneath[cols * row + col] = *to_save;
+			}
 			gp->mode = ATTR_IMAGE;
 			gp->u = 0;
 			tsetimgrow(gp, row + 1);
@@ -1367,26 +1385,14 @@ tcreateimgplaceholder(uint32_t image_id, uint32_t placement_id,
 	}
 }
 
-void gr_for_each_image_cell(int (*callback)(void *data, uint32_t image_id,
-					    uint32_t placement_id, int col,
-					    int row, char is_classic),
+void gr_for_each_image_cell(int (*callback)(void *data, Glyph *gp),
 			    void *data) {
 	for (int row = 0; row < term.row; ++row) {
 		for (int col = 0; col < term.col; ++col) {
 			Glyph *gp = &term.line[row][col];
 			if (gp->mode & ATTR_IMAGE) {
-				uint32_t image_id = tgetimgid(gp);
-				uint32_t placement_id = tgetimgplacementid(gp);
-				int ret =
-					callback(data, tgetimgid(gp),
-						 tgetimgplacementid(gp),
-						 tgetimgcol(gp), tgetimgrow(gp),
-						 tgetisclassicplaceholder(gp));
-				if (ret == 1) {
+				if (callback(data, gp))
 					term.dirty[row] = 1;
-					gp->mode = 0;
-					gp->u = ' ';
-				}
 			}
 		}
 	}
@@ -2190,7 +2196,8 @@ strhandle(void)
 					res->placeholder.placement_id,
 					res->placeholder.columns,
 					res->placeholder.rows,
-					res->placeholder.do_not_move_cursor);
+					res->placeholder.do_not_move_cursor,
+					res->placeholder.text_underneath);
 			}
 			if (res->response[0])
 				ttywrite(res->response, strlen(res->response),
