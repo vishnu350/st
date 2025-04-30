@@ -1,7 +1,6 @@
 # Debian Suckless Terminal (st)
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian, Ubuntu, and Linux Mint. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
-- Graphics support via the kitty graphics protocol from [Sergei][https://github.com/sergei-grechanik/st-graphics] (graphics-with-patches branch)
 - Proper "Open Terminal Here" integration for Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections.
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)
@@ -11,9 +10,11 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - Blinking cursor (Square Box)
 - Swap mouse cursor (for VIM/etc)
 - One clipboard (better cut/paste)
-- Fullscreen support (F11/Alt-Enter)
 - Solarized dark
 - Fira Code Nerd Fonts
+- Graphics support via the kitty graphics protocol from [Sergei][https://github.com/sergei-grechanik/st-graphics] (graphics-with-patches branch)
+  - Supports Alpha and Scrollback patches by default
+  - Fullscreen mod doesnt work, removed
 
 st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
 
