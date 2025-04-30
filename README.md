@@ -12,8 +12,8 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - One clipboard (better cut/paste)
 - Solarized dark
 - Fira Code Nerd Fonts
-- Graphics support via the kitty graphics protocol from [Sergei][https://github.com/sergei-grechanik/st-graphics] (graphics-with-patches branch)
-  - Already includes alpha and scrollback patches, plus a bit more
+- Graphics support via the kitty graphics protocol from [Sergei](https://github.com/sergei-grechanik/st-graphics) (graphics-with-patches branch)
+  - Already includes alpha and scrollback patches, plus a few others
   - Fullscreen mod doesnt work, removed
 
 st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
