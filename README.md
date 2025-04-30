@@ -13,6 +13,7 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - Fullscreen support (F11/Alt-Enter)
 - Solarized dark
 - Fira Code Nerd Fonts
+- Graphics support via the kitty graphics protocol from [Sergei][https://github.com/sergei-grechanik/st-graphics] (graphics-with-patches branch)
 
 st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
 
