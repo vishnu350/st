@@ -11,10 +11,12 @@ index 2cd740a..d42d5c5 100644
  static int borderpx = 2;
  
  /*
-@@ -176,10 +176,11 @@ static uint forcemousemod = ShiftMask;
+@@ -176,10 +176,9 @@ static uint forcemousemod = ShiftMask;
   */
  static MouseShortcut mshortcuts[] = {
  	/* mask                 button   function        argument       release */
+-	{ TERMMOD,              Button3, previewimage,   {.s = "feh"} },
+-	{ TERMMOD,              Button2, showimageinfo,  {},            1 },
 -	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
 -	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"} },
 +	{ XK_ANY_MOD,           Button2, clippaste,      {.i = 0},      1 },

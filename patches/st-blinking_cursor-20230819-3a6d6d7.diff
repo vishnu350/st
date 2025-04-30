@@ -51,7 +51,7 @@ index aa09997..b33a963 100644
  
  void
  clipcopy(const Arg *dummy)
-@@ -1558,29 +1559,44 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
+@@ -1559,29 +1560,44 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
  	/* draw the new one */
  	if (IS_SET(MODE_FOCUSED)) {
  		switch (win.cursor) {
@@ -77,8 +77,8 @@ index aa09997..b33a963 100644
 +			/* FALLTHROUGH */
 +		case 4: /* steady underline */
  			XftDrawRect(xw.draw, &drawcol,
- 					borderpx + cx * win.cw,
- 					borderpx + (cy + 1) * win.ch - \
+ 					win.hborderpx + cx * win.cw,
+ 					win.vborderpx + (cy + 1) * win.ch - \
  						cursorthickness,
  					win.cw, cursorthickness);
  			break;
@@ -90,8 +90,8 @@ index aa09997..b33a963 100644
 +			/* FALLTHROUGH */
 +		case 6: /* steady bar */
  			XftDrawRect(xw.draw, &drawcol,
- 					borderpx + cx * win.cw,
- 					borderpx + cy * win.ch,
+ 					win.hborderpx + cx * win.cw,
+ 					win.vborderpx + cy * win.ch,
  					cursorthickness, win.ch);
  			break;
 +		case 7: /* blinking st cursor */

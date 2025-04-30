@@ -16,11 +16,11 @@ diff -up st-0.8.4-ori/x.c st-0.8.4/x.c
  {
  	XGCValues gcvalues;
 -	Cursor cursor;
- 	Window parent;
+ 	Window parent, root;
  	pid_t thispid = getpid();
 -	XColor xmousefg, xmousebg;
-	XWindowAttributes attr;
-	XVisualInfo vis;
+ 	XWindowAttributes attr;
+ 	XVisualInfo vis;
  
  	if (!(xw.dpy = XOpenDisplay(NULL)))
  		die("can't open display\n");

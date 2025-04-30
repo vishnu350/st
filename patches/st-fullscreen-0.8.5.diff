@@ -2,9 +2,9 @@ diff -r -u a/config.def.h b/config.def.h
 --- a/config.def.h	2022-01-07 06:41:35.000000000 -0500
 +++ b/config.def.h	2022-01-15 13:32:01.644320198 -0500
 @@ -201,6 +201,8 @@
- 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
- 	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
- 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
+ 	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
+ 	{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"} },
+ 	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
 +	{ XK_NO_MOD,            XK_F11,         fullscreen,     {.i =  0} },
 +	{ MODKEY,               XK_Return,      fullscreen,     {.i =  0} },
  };
@@ -18,6 +18,7 @@ diff -r -u a/st.h b/st.h
  void draw(void);
  
 +void fullscreen(const Arg *);
+ void externalpipe(const Arg *);
  void printscreen(const Arg *);
  void printsel(const Arg *);
  void sendbreak(const Arg *);
