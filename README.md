@@ -8,7 +8,6 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - Desktop entry (for menu shortcuts)
 - Alpha (transparent backgrounds)
 - Blinking cursor (Square Box)
-- Swap mouse cursor (for VIM/etc)
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
 - Solarized dark
