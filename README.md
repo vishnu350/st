@@ -34,13 +34,6 @@ The popular alternative, rxvt has only 32K lines of code. This is just too much 
 Terminal emulation doesn't need to be so complex.
 
 
-# Configuration
-
-Configuration values such as font settings and alpha values will be stored in `~/.st.conf` for persistence, change this file if needed.
-
-If this file does not exist or was deleted, it will be regenerated with safe defaults.
-
-
 # Installation (Manual Build)
 
 You need the following packages:
@@ -59,6 +52,13 @@ To compile and install Debian st:
     fc-cache -fv
 
 This installation method will also bundle and enable Fira Code Nerd fonts by default.
+
+
+# Configuration
+
+Configuration values such as font settings and alpha values will be stored in `~/.st.conf` for persistence, change this file if needed.
+
+If this file does not exist or was deleted, it will be regenerated with safe defaults.
 
 
 # Credits
