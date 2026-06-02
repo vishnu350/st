@@ -6,6 +6,8 @@ include config.mk
 
 SRC = st.c x.c
 OBJ = $(SRC:.c=.o)
+export arch = $(shell uname -m)
+export version = $(shell grep "+VERSION" patches/st-vish.diff | awk '{print $$NF}')
 
 all: st
 
@@ -61,5 +63,14 @@ patch: clean
 	mv patches.bak patches
 	rm -rf *.orig *.desktop *.rej config.h
 	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
+
+release: patch st
+	rm -rf release && mkdir -p release
+	zip release/st-$(version)-$(arch)-static.zip st
+	wget -c https://raw.githubusercontent.com/ivan-hc/portable2appimage/refs/heads/main/portable2appimage
+	chmod +x portable2appimage
+	./portable2appimage st st "vishnu350|st|latest"
+	mv st*.AppImage release/st-$(version)-$(arch).AppImage
+	mv st*.AppImage.zsync release/st-$(version)-$(arch).AppImage.zsync
 
 .PHONY: all clean dist install uninstall
