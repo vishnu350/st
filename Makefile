@@ -65,6 +65,8 @@ patch: clean
 	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
 
 release: patch
+	# Replace icon to avoid conflict, and set to default fonts (cant be packaged)
+	sed -i 's/Icon=.*/Icon=st/' st.desktop
 	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
 	make st
 	rm -rf release && mkdir -p release
