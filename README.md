@@ -1,6 +1,6 @@
 # Debian Simple Terminal (st)
 
-The simplest terminal with a tiny footprint (~100KB) with the minimum needed features for functionality.
+Simple terminal with a tiny footprint (~100KB) packed with the minimum features needed for full functionality and daily use. Best used with tmux.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian, Ubuntu, and Linux Mint. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
 - Configuration file in `~/.st.conf` (eg. changing font settings)
