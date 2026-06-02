@@ -1,6 +1,6 @@
 # Debian Simple Terminal (st)
 
-Simple Terminal, a lightweight (~100KB) terminal with essential features and rock-solid stability for daily use. 
+Simple Terminal, a lightweight (~100KB) terminal with essential features and rock-solid stability for daily use. Best used with tmux.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian, Ubuntu, and Linux Mint. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
 - Configuration file in `~/.st.conf` (eg. changing font settings)
@@ -34,43 +34,32 @@ The popular alternative, rxvt has only 32K lines of code. This is just too much 
 Terminal emulation doesn't need to be so complex.
 
 
-# Requirements
+# Configuration
 
-In order to properly build Debian st you need the following packages:
-    
+Configuration values such as font settings and alpha values will be stored in `~/.st.conf` for persistence, change this file if needed.
+
+If this file does not exist or was deleted, it will be regenerated with safe defaults.
+
+
+# Installation (Manual Build)
+
+You need the following packages:
+
     sudo apt install build-essential libxft-dev pkg-config python3-nautilus
 
 To avoid conflicts, default nautilus open terminal extension should be removed:
-    
-    sudo apt purge nautilus-extension-gnome-terminal
 
-Usage of tmux is recommended.
+    sudo apt remove nautilus-extension-gnome-terminal
 
-
-# Installation
-
-To install Debian st: Clone, apply the patches, make install as root, and rebuild the font cache.
+To compile and install Debian st:
 
     git clone https://github.com/vishnu350/st
-    make patch
+    cd st && make patch
     sudo make install
     fc-cache -fv
 
-To customize default common settings, edit the files below prior to running make patch:
-- Font settings: patches/st-vish.diff (line 10)
-- Transparency value: patches/st-alpha-swapmouse.diff (line 10)
+This installation method will also bundle and enable Fira Code Nerd fonts by default.
 
-Configuration values such as font settings will be stored in `~/.st.conf` for persistence, change this file if needed. If this file does not exist or was deleted, it will be regenerated.
-
-
-# Running st
-
-If you did not install st with make clean install, you must compile
-the st terminfo entry with the following command:
-
-    tic -sx st.info
-
-See the man page for additional details.
 
 # Credits
 

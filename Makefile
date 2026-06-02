@@ -64,7 +64,9 @@ patch: clean
 	rm -rf *.orig *.desktop *.rej config.h
 	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
 
-release: patch st
+release: patch
+	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
+	make st
 	rm -rf release && mkdir -p release
 	zip release/st-$(version)-$(arch)-static.zip st
 	wget -c https://raw.githubusercontent.com/ivan-hc/portable2appimage/refs/heads/main/portable2appimage
