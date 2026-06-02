@@ -1,6 +1,7 @@
 # Debian Simple Terminal (st)
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian, Ubuntu, and Linux Mint. It is integrated with a minimal collection of patches along with proper Nautilus integration for ease of use:
+- Configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections.
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)
@@ -53,9 +54,11 @@ To install Debian st: Clone, apply the patches, make install as root, and rebuil
     sudo make install
     fc-cache -fv
 
-To customize common settings, edit the files below prior to running make patch:
+To customize default common settings, edit the files below prior to running make patch:
 - Font settings: patches/st-vish.diff (line 10)
 - Transparency value: patches/st-alpha-swapmouse.diff (line 10)
+
+Configuration values such as font settings will be stored in `~/.st.conf` for persistence, change this file if needed. If this file does not exist or was deleted, it will be regenerated.
 
 
 # Running st
