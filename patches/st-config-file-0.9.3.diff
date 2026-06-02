@@ -1,8 +1,8 @@
 diff --git a/x.c b/x.c
-index d73152b..cfe1be2 100644
+index d73152b..61c55d0 100644
 --- a/x.c
 +++ b/x.c
-@@ -254,6 +254,42 @@ static char *opt_title = NULL;
+@@ -254,6 +254,51 @@ static char *opt_title = NULL;
  
  static uint buttons; /* bit field of pressed buttons */
  
@@ -24,7 +24,10 @@ index d73152b..cfe1be2 100644
 +	if (!fp) {
 +		fp = fopen(path, "w");
 +		if (!fp) return;
-+		fprintf(fp, "font=\"%s\"", font); //Store default font info
++		fprintf(fp, "font=\"%s\"\n", font);
++		fprintf(fp, "alpha=\"%f\"\n", alpha);
++		fprintf(fp, "rows=\"%d\"\n", rows);
++		fprintf(fp, "cols=\"%d\"\n", cols);
 +		fclose(fp);
 +		return;
 +	}
@@ -35,6 +38,12 @@ index d73152b..cfe1be2 100644
 +			font = malloc(strlen(results) + 1);
 +			strcpy(font, results);
 +		}
++		if (sscanf(line, "alpha=\"%5[^\"]\"", results) == 1)
++			alpha = strtof(results, NULL);
++		if (sscanf(line, "rows=\"%5[^\"]\"", results) == 1)
++			rows = strtol(results, NULL, 10);
++		if (sscanf(line, "cols=\"%5[^\"]\"", results) == 1)
++			cols = strtol(results, NULL, 10);
 +	}
 +
 +	// Overwrite options and close file
@@ -45,11 +54,11 @@ index d73152b..cfe1be2 100644
  void
  clipcopy(const Arg *dummy)
  {
-@@ -1144,6 +1173,7 @@ xinit(int cols, int rows)
- 	if (!FcInit())
- 		die("could not init fontconfig.\n");
+@@ -2094,6 +2139,7 @@ run:
+ 	if (!opt_title)
+ 		opt_title = (opt_line || !opt_cmd) ? "st" : opt_cmd[0];
  
-+	load_config(); //Loads values from config file (overwrites font variable)
- 	usedfont = (opt_font == NULL)? font : opt_font;
- 	xloadfonts(usedfont, 0);
- 
++	load_config(); //Loads values from config file
+ 	setlocale(LC_CTYPE, "");
+ 	XSetLocaleModifiers("");
+ 	cols = MAX(cols, 1);
