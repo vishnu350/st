@@ -1,0 +1,55 @@
+diff --git a/x.c b/x.c
+index d73152b..cfe1be2 100644
+--- a/x.c
++++ b/x.c
+@@ -254,6 +254,42 @@ static char *opt_title = NULL;
+ 
+ static uint buttons; /* bit field of pressed buttons */
+ 
++void
++load_config(void)
++{
++	FILE *fp;
++	char path[256];
++	char line[256];
++	char results[128];
++
++	// Open and read config file
++	const char *home = getenv("HOME");
++	if (!home) return;
++	snprintf(path, sizeof(path), "%s/.st.conf", home);
++	fp = fopen(path, "r");
++
++	// Build config file if missing
++	if (!fp) {
++		fp = fopen(path, "w");
++		if (!fp) return;
++		fprintf(fp, "font=\"%s\"", font); //Store default font info
++		fclose(fp);
++		return;
++	}
++
++	// Scan configuration values
++	while (fgets(line, sizeof(line), fp)) {
++		if (sscanf(line, "font=\"%127[^\"]\"", results) == 1) {
++			font = malloc(strlen(results) + 1);
++			strcpy(font, results);
++		}
++	}
++
++	// Overwrite options and close file
++	fclose(fp);
++	return;
++}
++
+ void
+ clipcopy(const Arg *dummy)
+ {
+@@ -1144,6 +1173,7 @@ xinit(int cols, int rows)
+ 	if (!FcInit())
+ 		die("could not init fontconfig.\n");
+ 
++	load_config(); //Loads values from config file (overwrites font variable)
+ 	usedfont = (opt_font == NULL)? font : opt_font;
+ 	xloadfonts(usedfont, 0);
+ 
