@@ -16,6 +16,21 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 st is a simple terminal emulator for X which sucks less. See their philosophy [here](https://suckless.org/philosophy).
 
 
+# [Motivation](https://st.suckless.org)
+
+Here's an excerpt from the **xterm(1) README**:
+
+> Abandon All Hope, Ye Who Enter Here
+
+> This is undoubtedly the most ugly program in the distribution. It was one of the first "serious" programs ported, and still has a lot of historical baggage. Ideally, there would be a general tty widget and then vt102 and tek4014 subwidgets so that they could be used in other programs. We are trying to clean things up as we go, but there is still a lot of work to do.
+
+It has over 65K lines of code and emulates obscure and obsolete terminals you will never need.
+
+The popular alternative, rxvt has only 32K lines of code. This is just too much for something as simple as a terminal emulator; it's yet another example of code complexity.
+
+Terminal emulation doesn't need to be so complex.
+
+
 # Requirements
 
 In order to properly build Debian st you need the following packages:
