@@ -24,7 +24,7 @@ st: $(OBJ)
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
 
 clean:
-	rm -f st+ $(OBJ) st+-$(VERSION).tar.gz
+	rm -rf st+ $(OBJ) st+-$(VERSION).tar.gz st-$(VERSION) release st+-workdir.tmp *.orig *.rej config.h
 
 dist: clean
 	mkdir -p st-$(VERSION)
@@ -32,17 +32,13 @@ dist: clean
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st+-$(VERSION).tar.gz
-	rm -rf st-$(VERSION) release st+-workdir.tmp && mkdir -p release
 	# Replace icon to avoid conflict, and set to default fonts (cant be packaged)
 	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
 	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
-	make st
-	mkdir -p st+-workdir.tmp/st+.AppDir
-	cp st.info st+-workdir.tmp/st+.AppDir/.
+	make st && mkdir -p release
 	zip release/st+-$(VERSION)-$(ARCH)-static.zip st+
-	wget -c https://raw.githubusercontent.com/ivan-hc/portable2appimage/refs/heads/main/portable2appimage
 	chmod +x portable2appimage
-	./portable2appimage st+ st+ "vishnu350|st|latest"
+	./portable2appimage st+ st+ $(VERSION) "vishnu350|st|latest"
 	mv st*.AppImage release/st+-$(VERSION)-$(ARCH).AppImage
 	mv st*.AppImage.zsync release/st+-$(VERSION)-$(ARCH).AppImage.zsync
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
@@ -75,7 +71,6 @@ patch: clean
 	git checkout .
 	rm -rf patches
 	mv patches.bak patches
-	rm -rf *.orig *.rej config.h
 	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
 
 .PHONY: all clean dist install uninstall

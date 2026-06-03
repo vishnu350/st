@@ -1,0 +1,325 @@
+#!/bin/sh
+
+P2AVER="1.1.4"
+
+FILE="$1"
+
+case "$1" in
+	""|"-h"|"--help"|"help")
+		printf "\n USAGE:\n"
+		printf "	portable2appimage \"FILE\"\n"
+		printf "	portable2appimage \"FILE\" \"APP\"\n"
+		printf "	portable2appimage \"FILE\" \"APP\" \"VERSION\"\n"
+		printf "	portable2appimage \"FILE\" \"APP\" \"VERSION\" \"USER|REPO|TAG\"\n"
+		printf "	portable2appimage \"FILE\" \"APP\" \"USER|REPO|TAG\"\n"
+		printf "\n See https://github.com/ivan-hc/portable2appimage for more information.\n\n"
+		exit 0
+		;;
+	"-v"|"--version"|"version")
+		printf "%b\n" "$P2AVER" && exit 0
+		;;
+esac	
+
+APP="$2"
+if echo "$2" | grep -q "|"; then
+	APP="$FILE"
+	UPINFO="$2"
+fi
+[ -z "$APP" ] && APP="$FILE"
+
+APPDIR="$APP.AppDir"
+
+mkdir -p "$APP"-workdir.tmp "$APPDIR"
+rm -Rf ./*.AppDir/* ./"$APP"-workdir.tmp/*
+cp "$FILE" "$APP"-workdir.tmp/
+cp st.info "$APP"-workdir.tmp/
+sed "s/VERSION/$VERSION/g" < st.1 > "$APP"-workdir.tmp/st+.1
+cd "$APP"-workdir.tmp || exit 1
+
+################################################
+# ALTERNATE CURL AND WGET
+################################################
+
+# Read online text
+_use_online_reading_tool() {
+	local url="$1"
+	if command -v curl >/dev/null 2>&1; then
+		curl -Ls "$url" 2>/dev/null
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -O - "$url" 2>/dev/null
+	fi
+}
+
+# Download files
+_use_online_downloader() {
+	local file="$2"
+	local url="$1"
+	if command -v curl >/dev/null 2>&1; then
+		curl -s -Lo "$file" "$url" 2>/dev/null
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q "$url" -O "$file" 2>/dev/null
+	fi
+}
+
+################################################
+# Check if FILE is an archive
+################################################
+
+_use_busybox() {
+	if [ ! -f ../busybox ]; then
+		_use_online_downloader https://github.com/ivan-hc/busybox-appimage/releases/download/continuous/busybox-"$(uname -m)"-static ../busybox && chmod a+x ../busybox || exit 1
+		../busybox "$@"
+	else
+		../busybox "$@"
+	fi
+}
+
+_ar_cmd() {
+	if command -v ar 1>/dev/null; then
+		ar x "$@"
+	else
+		_use_busybox ar x "$@"
+	fi
+}
+
+_tar_cmd() {
+	if command -v tar 1>/dev/null; then
+		tar fx "$@"
+	else
+		_use_busybox tar fx "$@"
+	fi
+}
+
+_unzip_cmd() {
+	if command -v unzip 1>/dev/null; then
+		unzip -qq "$@"
+	else
+		_use_busybox unzip -qq "$@"
+	fi
+}
+
+_use_7z() {
+	if [ ! -f ../7zz ]; then
+		_7z_download_page=$(_use_online_reading_tool https://www.7-zip.org/download.html | tr '">< ' '\n' | grep -i "http.*download.*linux.*tar")
+		if [ "$(uname -m )" = x86_64 ]; then
+			_use_online_downloader "$(echo "$_7z_download_page" | grep -i x64 | head -1)" ../7z.tar.xz
+		elif [ "$(uname -m )" = aarch64 ]; then
+			_use_online_downloader "$(echo "$_7z_download_page" | grep -i arm64 | head -1)" ../7z.tar.xz
+		elif [ "$(uname -m )" = i686 ]; then
+			_use_online_downloader "$(echo "$_7z_download_page" | grep -i x86 | head -1)" ../7z.tar.xz
+		fi
+		_tar_cmd ../*tar* 7zz && mv 7zz ../ && rm -f ../7z.tar.xz
+		../7zz x "$@"
+	else
+		../7zz x "$@"
+	fi
+}
+
+_7z_cmd() {
+	if command -v 7z 1>/dev/null; then
+		7z x "$@"
+	else
+		_use_7z "$@"
+	fi
+}
+
+if test -e ./*.7z; then
+	_7z_cmd ./*.7z 2>/dev/null && rm -f ./*.7z
+elif test -e ./*.rpm; then
+	_7z_cmd ./*.rpm 2>/dev/null && rm -f ./*.rpm
+	_7z_cmd ./*.cpio 2>/dev/null && rm -f ./*.cpio
+elif test -e ./*.deb; then
+	_ar_cmd ./*.deb && rm -f ./*.deb ./control*tar*
+	_tar_cmd ./data.tar* && rm -f ./*tar.*
+elif test -e ./*.apk; then
+	_tar_cmd ./*apk && rm -f ./*apk
+elif test -e ./*tar.*; then
+	_tar_cmd ./*tar.* && rm -f ./*tar.*
+elif test -e ./*tbz; then
+	_tar_cmd ./*tbz && rm -f ./*tbz
+elif test -e ./*zip; then
+	_unzip_cmd ./*zip 1>/dev/null && rm -f ./*zip
+fi
+
+mv ./* ../"$APPDIR"/ && mv ../"$APPDIR" ./ && cd "$APPDIR" || exit 1
+
+################################################
+# Find main executable
+################################################
+
+EXEC=$(find . -maxdepth 10 -type f -name "$APP" -executable 2>/dev/null | sed 's/^.//g' | head -1)
+if [ -z "$EXEC" ]; then
+	EXEC_REFS=$(find . -maxdepth 10 -type f -name "$APP" 2>/dev/null)
+	for f in $EXEC_REFS; do
+		if head -c 4 "$f" | grep -q 'ELF'; then
+			echo "ELF binary" && chmod a+x "$f"
+		elif head -c 2 "$f" | grep -q '#!'; then
+			echo "Script" && chmod a+x "$f"
+		fi
+	done
+	EXEC=$(find . -maxdepth 10 -type f -name "$APP" -executable 2>/dev/null | sed 's/^.//g' | head -1)
+fi
+[ -z "$EXEC" ] && echo "No executable found, exiting." && exit 0
+
+################################################
+# Add version
+################################################
+
+if [ -z "$3" ]; then
+	VERSION=$(echo "$FILE" | grep -Eo "([0-9]{1,}\.)+[0-9]{1,}")
+	if [ -z "$VERSION" ]; then
+		VERSION=$(strings "$(find . -type f -name "$APP" -executable 2>/dev/null | head -1)" 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)
+	fi
+elif echo "$3" | grep -q "|"; then
+	UPINFO="$3"
+	VERSION=$(strings "$(find . -type f -name "$APP" -executable 2>/dev/null | head -1)" 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)
+else
+	VERSION="$3"
+	UPINFO="$4"
+fi
+
+################################################
+# Compile the AppDir
+################################################
+
+# Add AppRun
+if test -f ../../../AppRun; then
+	cp ../../../AppRun ./AppRun && chmod a+x ./AppRun
+elif test -f ../../AppRun; then
+	cp ../../AppRun ./AppRun && chmod a+x ./AppRun
+elif test -f ../AppRun; then
+	cp ../AppRun ./AppRun && chmod a+x ./AppRun
+else
+	rm -f ./AppRun
+	cat <<-HEREDOC >> "AppRun"
+	#!/bin/sh
+	HERE=\$(dirname "\$(readlink -f "\$0")")
+	exec "\$HERE$EXEC" "\$@"
+	HEREDOC
+	chmod a+x "AppRun"
+fi
+
+# Add .desktop file
+DESKTOP_FILE=$(find . -maxdepth 10 -type f -name "*.desktop" -exec grep -q "^Exec=.*$APP" {} \; -exec grep -q "^Icon=" {} \; -print | head -1)
+if test -f ../../../*.desktop; then
+	cp ../../../*.desktop ./"$APP.desktop" 2>/dev/null
+elif test -f ./*.desktop; then
+	cp ./*.desktop ./"$APP.desktop" 2>/dev/null
+elif test -f ../../*.desktop; then
+	cp ../../*.desktop ./"$APP.desktop" 2>/dev/null
+elif test -f ../*.desktop; then
+	cp ../*.desktop ./"$APP.desktop" 2>/dev/null
+elif [ -n "$DESKTOP_FILE" ]; then
+	cp "$DESKTOP_FILE" ./
+else
+	cat <<-HEREDOC >> "$APP.desktop"
+	[Desktop Entry]
+	Type=Application
+	Name=$APP
+	Exec=$(echo "$EXEC" | sed 's#^/##g')
+	Icon=$APP
+	Terminal=false
+	Categories=Utility;
+	HEREDOC
+fi
+
+# Add icon
+# Get icon name from .desktop file (strip path, extension, and prefix)
+ICON_ENTRY=$(cat ./*.desktop | grep "^Icon=" | head -1 | sed 's:.*/::' | sed 's/.png//g; s/.svg//g; s/Icon=//g')
+
+# Update first Icon= line in .desktop files
+sed -i "0,/^Icon=/s|^Icon=.*|Icon=$ICON_ENTRY|" ./*.desktop 2>/dev/null
+
+# Search for icon in priority order
+for ext in png svg xpm; do
+	if test -f ../*."$ext"; then
+		cp ../*."$ext" ./"$ICON_ENTRY.$ext" && icon_found="true"
+	elif test -f ../../*."$ext"; then
+		cp ../../*."$ext" ./"$ICON_ENTRY.$ext" && icon_found="true"
+	elif test -f ../../../*."$ext"; then
+		cp ../../../*."$ext" ./"$ICON_ENTRY.$ext" && icon_found="true"
+	fi
+done
+
+# Copy icon or download fallback
+if [ -z "$icon_found" ]; then
+	ICON=$(find . -maxdepth 10 -type f \( -iname "$ICON_ENTRY.png" -o -iname "$ICON_ENTRY.svg" -o -iname "$ICON_ENTRY.xpm" \) 2>/dev/null | head -1)
+	if [ -n "$ICON" ]; then
+		cp "$ICON" ./
+	else
+		_use_online_downloader "https://portable-linux-apps.github.io/icons/$APP.png" "$ICON_ENTRY.png" 2>/dev/null || printf '\x89PNG\r\n\x1a\n' > "$ICON_ENTRY.png"
+	fi
+fi
+
+cd .. || exit 1
+
+################################################
+# Export to AppImage
+################################################
+
+_appimagetool() {
+	if ! command -v appimagetool >/dev/null; then
+		if [ ! -f ./appimagetool ]; then
+			_use_online_downloader https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-"$(uname -m)".AppImage ./appimagetool
+		fi
+		chmod a+x ./appimagetool
+		./appimagetool "$@"
+	else
+		appimagetool "$@"
+	fi
+}
+
+[ -z "$arch" ] && arch=$(uname -m)
+
+_export_to_appimage() {
+	if [ -n "$4" ]; then
+		UPINFO="gh-releases-zsync|$4|*$arch.AppImage.zsync"
+		ARCH="$arch" VERSION="$VERSION" _appimagetool "$APPDIR" 2>&1
+	elif [ -n "$UPINFO" ]; then
+		UPINFO="gh-releases-zsync|$UPINFO|*$arch.AppImage.zsync"
+		ARCH="$arch" VERSION="$VERSION" _appimagetool -u "$UPINFO" "$APPDIR" 2>&1
+	else
+		ARCH="$arch" VERSION="$VERSION" _appimagetool -u "$UPINFO" "$APPDIR" 2>&1
+	fi
+}
+
+_export_to_appimage
+
+while ! ls ./*.AppImage >/dev/null 2>&1; do
+	echo "Fixing issues..."
+
+	# 1. Remove duplicate [Desktop Entry] headers (keep the first)
+	sed -i '0,/^\[Desktop Entry\]/!{/^\[Desktop Entry\]/d}' "$APPDIR"/*.desktop
+
+	# 2. Remove deprecated Encoding keys
+	sed -i '/^Encoding=/d' "$APPDIR"/*.desktop
+
+	# 3. Remove duplicate keys in [Desktop Entry] (keep first occurrence)
+	for key in Name Exec Icon Terminal Type Categories Comment; do
+		sed -i "0,/^$key=/!{/^$key=/d}" "$APPDIR"/*.desktop
+	done
+
+	# 4. Fix Categories: remove unregistered values
+	STANDARD_CATS="AudioVideo|Development|Education|Game|Graphics|Network|Office|Settings|System|Utility"
+	awk -v cats="$STANDARD_CATS" '
+	/^Categories=/ {
+		split(substr($0,12), a, ";")
+		out="Categories="
+		for (i in a) {
+			if (a[i] ~ "^("cats")$") out=out a[i] ";"
+		}
+		print out
+		next
+	}
+	{print}
+	' "$APPDIR"/*.desktop > "$APP.tmp" && mv "$APP.tmp" "$APPDIR"/*.desktop
+	_export_to_appimage 2>/dev/null
+done
+
+if ! ls ./*.AppImage >/dev/null 2>&1; then
+	echo "No AppImage available."
+	exit 1
+fi
+
+cd .. || exit 1
+mv "$APP"-workdir.tmp/*AppImage* ./
