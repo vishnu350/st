@@ -5,6 +5,7 @@ VERSION = 0.9.3
 
 # paths
 PREFIX = /usr/local
+APPPREFIX = $(PREFIX)/share/applications
 MANPREFIX = $(PREFIX)/share/man
 
 NAUTILUS_EXT = /usr/share/nautilus-python/extensions
@@ -26,6 +27,7 @@ LIBS = -L$(X11LIB) -lm -lrt -lX11 -lutil -lXft \
 STCPPFLAGS = -DVERSION=\"$(VERSION)\" -D_XOPEN_SOURCE=600
 STCFLAGS = $(INCS) $(STCPPFLAGS) $(CPPFLAGS) $(CFLAGS)
 STLDFLAGS = $(LIBS) $(LDFLAGS)
+ARCH = $(shell uname -m)
 
 # OpenBSD:
 #CPPFLAGS = -DVERSION=\"$(VERSION)\" -D_XOPEN_SOURCE=600 -D_BSD_SOURCE
