@@ -16,8 +16,8 @@ except ImportError:
     from urllib.parse import unquote, urlparse
 
 REMOTE_URI_SCHEME = ['ftp', 'sftp']
-terminal_cmd: list[str] = ["st"]
-textdomain("st")
+terminal_cmd: list[str] = ["st+"]
+textdomain("st+")
 _ = gettext
 
 def _checkdecode(s):

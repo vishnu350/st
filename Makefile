@@ -44,7 +44,7 @@ dist: clean
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: st
-	cp -f open-terminal.py $(NAUTILUS_EXT)
+	if [ -d $(NAUTILUS_EXT) ]; then cp -f open-terminal.py $(NAUTILUS_EXT); fi
 	wget -c "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
 	rm -rf $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 	unzip FiraCode.zip -d $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
