@@ -10,10 +10,10 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - Working directory (needed for "Open Terminal Here" integration)
 - Desktop entry (for menu shortcuts)
 - Alpha (transparent backgrounds)
-- Blinking cursor (Square Box)
+- Blinking cursor (square box)
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
-- Solarized dark
+- Solarized dark theme
 - Fira Code Nerd Fonts
 - AppImage install (AM)
 
@@ -51,6 +51,18 @@ To compile and install st+:
     fc-cache -fv
 
 This installation method will also bundle and enable Fira Code Nerd fonts by default.
+
+
+# Installation (AppImage)
+
+Just download the latest AppImage from the release section. Rename it to **st+** and place it in your system PATH.
+
+You must install the terminfo and manpages manually. Do this by running these commands from within st+ (create dirs if needed):
+
+    sudo tic -sx $APPDIR/st.info
+    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.
+
+This installation method will not include Fira Code Nerd fonts by default.
 
 
 # Configuration
