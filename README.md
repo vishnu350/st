@@ -2,7 +2,7 @@
 
 Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you've always wanted to use st but dont want to bother with merging patches and coding features manually, then st+ is for you.
 
-This is a fork of st for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
+This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Gnome's Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections
@@ -16,8 +16,6 @@ This is a fork of st for Gnome-based distros such as Debian/Ubuntu/Mint, but wil
 - Solarized dark
 - Fira Code Nerd Fonts
 - AppImage install (AM)
-
-The original st from [suckless.org](https://st.suckless.org) is a simple terminal emulator for X that just sucks less (see their philosophy [here](https://suckless.org/philosophy)). However, it cannot be used without manual compilation, and default builds lacks basic on-the-fly configurability as well as missing many essential features.
 
 
 # Motivation
