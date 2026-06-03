@@ -44,6 +44,40 @@ index 2cd740a..315f8c9 100644
  	{ XK_Delete,        XK_ANY_MOD,     "\033[3~",      +1,    0},
  	{ XK_BackSpace,     XK_NO_MOD,      "\177",          0,    0},
  	{ XK_BackSpace,     Mod1Mask,       "\033\177",      0,    0},
+diff --git a/st.1 b/st.1
+index 39120b4..3747877 100644
+--- a/st.1
++++ b/st.1
+@@ -1,8 +1,8 @@
+-.TH ST 1 st\-VERSION
++.TH ST+ 1 st+\-VERSION
+ .SH NAME
+-st \- simple terminal
++st+ \- simple terminal+
+ .SH SYNOPSIS
+-.B st
++.B st+
+ .RB [ \-aiv ]
+ .RB [ \-c
+ .IR class ]
+@@ -26,7 +26,7 @@ st \- simple terminal
+ .IR command
+ .RI [ arguments ...]]
+ .PP
+-.B st
++.B st+
+ .RB [ \-aiv ]
+ .RB [ \-c
+ .IR class ]
+@@ -48,7 +48,7 @@ st \- simple terminal
+ .IR line
+ .RI [ stty_args ...]
+ .SH DESCRIPTION
+-.B st
++.B st+
+ is a simple terminal emulator.
+ .SH OPTIONS
+ .TP
 diff --git a/config.mk b/config.mk
 index aafead6..90f2feb 100644
 --- a/config.mk
