@@ -91,7 +91,7 @@ If this file does not exist or was deleted, it will be regenerated with safe def
 Supported configuration values: `font alpha rows cols`
 
 
-# Thanks & How To Contribute
+# Contribute
 
 If you like this work, please consider to:
 - Please ⭐️ this repository if this project helped you.
