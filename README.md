@@ -1,6 +1,6 @@
 # Simple Terminal+ (st+)
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a beautifully solarized simple terminal that supports all of the above features (and nothing more), then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, beautifully solarized, simple terminal that supports all of the mentioned features (and nothing more!), then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
@@ -85,6 +85,8 @@ Notes on manual install flow:
 Configuration values such as font settings and alpha values will be stored in `~/.st.conf` for persistence, change this file if needed.
 
 If this file does not exist or was deleted, it will be regenerated with safe defaults.
+
+Supported configuration values: `font alpha rows cols`
 
 
 # Credits
