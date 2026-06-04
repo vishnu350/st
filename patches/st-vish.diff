@@ -78,14 +78,3 @@ index 39120b4..3747877 100644
  is a simple terminal emulator.
  .SH OPTIONS
  .TP
-diff --git a/config.mk b/config.mk
-index aafead6..90f2feb 100644
---- a/config.mk
-+++ b/config.mk
-@@ -1,5 +1,5 @@
- # st version
--VERSION = 0.9.3
-+VERSION = 0.9.3-4
- ARCH = $(shell uname -m)
- 
- # Customize below to fit your system
