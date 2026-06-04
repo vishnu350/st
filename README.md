@@ -91,9 +91,14 @@ If this file does not exist or was deleted, it will be regenerated with safe def
 Supported configuration values: `font alpha rows cols`
 
 
-# Credits
+# Thanks & How To Contribute
 
-- Patches merged from official suckless project page: https://st.suckless.org
+If you like this work, please consider to:
+- Please ⭐️ this repository if this project helped you.
+- Buy the suckless.org team a cup of [coffee](https://suckless.org/donations/).
+
+Credits to the following folk:
+- Source code and patches merged from the official suckless project page: https://st.suckless.org
 - Open terminal python script adapted from Tilix: https://github.com/gnunn1/tilix
 - Ivan's portable2appimage script: https://github.com/ivan-hc/portable2appimage
 - Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.
