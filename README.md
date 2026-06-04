@@ -1,6 +1,6 @@
 # Simple Terminal+ (st+)
 
-<img src="https://github.com/user-attachments/assets/1ba9409d-174a-463c-91de-7ae4684c20c8" alt="drawing" width="50%"/>
+<img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
 Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, beautifully solarized, simple terminal that supports all of the mentioned features (and nothing more!), then st+ is for you.
 
