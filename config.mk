@@ -1,6 +1,7 @@
 # st version
 VERSION = 0.9.3-5
 ARCH = $(shell uname -m)
+STATIC ?= 0
 
 # Customize below to fit your system
 
@@ -20,9 +21,16 @@ PKG_CONFIG = pkg-config
 INCS = -I$(X11INC) \
        `$(PKG_CONFIG) --cflags fontconfig` \
        `$(PKG_CONFIG) --cflags freetype2`
+ifeq ($(STATIC),0)
+# Default dynamically linked library
 LIBS = -L$(X11LIB) -lm -lrt -lX11 -lutil -lXft \
        `$(PKG_CONFIG) --libs fontconfig` \
        `$(PKG_CONFIG) --libs freetype2`
+else
+# Customized library order for static linking (all except system libs, eg. X11 and math)
+LIBS = -Wl,-Bstatic  -lfontconfig -lfreetype -lpng16 -lbrotlidec -lbrotlicommon -lexpat -lz -lbz2 -lrt -lutil \
+       -Wl,-Bdynamic -lm -lX11 -lXft
+endif
 
 # flags
 STCPPFLAGS = -DVERSION=\"$(VERSION)\" -D_XOPEN_SOURCE=600
