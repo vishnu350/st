@@ -1,6 +1,6 @@
 # Simple Terminal+ (st+)
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you've always wanted to use st but dont want to bother with merging patches and coding features manually, then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a beautifully solarized simple terminal that supports all of the above features (and nothing more), then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
@@ -14,7 +14,7 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
 - Solarized dark theme
-- Fira Code Nerd Fonts
+- Fira Code nerd-fonts
 - AppImage install (AM)
 
 
@@ -33,13 +33,32 @@ It has over 65K lines of code and emulates obscure and obsolete terminals you wi
 The popular alternative, rxvt has only 32K lines of code. This is just too much for something as simple as a terminal emulator; it's yet another example of code complexity.
 
 
+# Installation (AppImage)
+
+The recommended AppImage installation method is through Ivan's [AM/Appman](https://github.com/ivan-hc/AM):
+
+    am -i st+
+
+Else, you can just download the latest AppImage from the [release section](https://github.com/vishnu350/st/releases). Rename it to **st+** and place it in your system PATH. You must also manually install the st+ terminfo (recommended), manpage and nautilus script. Do this by running these commands from within st+ (create the dirs if needed):
+
+    sudo tic -sx $APPDIR/st.info                                              # Recommended (terminfo)
+    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.                         # Optional (manpage)
+    sudo cp $APPDIR/open-terminal.py /usr/share/nautilus-python/extensions/.  # Optional (nautilus script)
+
+Notes on AppImage install flow:
+- AM will support auto-updates with checksum integrity verification.
+- If [AM/Appman](https://github.com/ivan-hc/AM) was not used, then the manpage, terminfo and nautilus scripts must be installed manually.
+- AppImages will be larger in size, but there will be virtually zero difference in performance.
+- Fira Code nerd-fonts are not included by default. You must install it manually and set it in `~/.st.conf`.
+
+
 # Installation (Manual Build)
 
-You need the following packages:
+You will need the following packages:
 
     sudo apt install build-essential libxft-dev pkg-config python3-nautilus
 
-To avoid conflicts, default nautilus open terminal extension should be removed:
+To avoid conflicts, default nautilus open terminal extension should be removed (if applicable):
 
     sudo apt remove nautilus-extension-gnome-terminal
 
@@ -50,19 +69,15 @@ To compile and install st+:
     sudo make install
     fc-cache -fv
 
-This installation method will also bundle and enable Fira Code Nerd fonts by default.
+To build the static binaries for distribution/release:
 
+    make dist STATIC=1
 
-# Installation (AppImage)
-
-Just download the latest AppImage from the release section. Rename it to **st+** and place it in your system PATH.
-
-You must install the terminfo and manpages manually. Do this by running these commands from within st+ (create dirs if needed):
-
-    sudo tic -sx $APPDIR/st.info
-    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.
-
-This installation method will not include Fira Code Nerd fonts by default.
+Notes on manual install flow:
+- No auto-updates.
+- Compiled binary size will be tiny ~100Kb in size.
+- Fira Code nerd-fonts are bundled and enabled by default.
+- Manpage, terminfo and nautilus scripts will be installed automatically if appropriate.
 
 
 # Configuration
