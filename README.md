@@ -2,7 +2,7 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features (and nothing more!), then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
@@ -41,11 +41,11 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
     am -i st+
 
-Else, you can just download the latest AppImage from the [release section](https://github.com/vishnu350/st/releases). Rename it to **st+** and place it in your system PATH. You must also manually install the st+ terminfo (recommended), manpage and nautilus script. Do this by running these commands from within st+ (create the dirs if needed):
+Else, you can just download the latest AppImage from the [release section](https://github.com/vishnu350/st/releases). Rename it to **st+** and place it in your system PATH. You must also manually install the st+ terminfo (required), manpage and nautilus script. Do this by running these commands from within st+ (create the dirs if needed):
 
-    sudo tic -sx $APPDIR/st.info                                              # Recommended (terminfo)
-    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.                         # Optional (manpage)
-    sudo cp $APPDIR/open-terminal.py /usr/share/nautilus-python/extensions/.  # Optional (nautilus script)
+    sudo tic -sx $APPDIR/st.info                                             # Required
+    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.                        # Optional
+    sudo cp $APPDIR/open-terminal.py /usr/share/nautilus-python/extensions/. # Optional
 
 Notes on AppImage install flow:
 - AM will support auto-updates with checksum integrity verification.
