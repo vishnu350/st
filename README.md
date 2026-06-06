@@ -70,7 +70,6 @@ To compile and install st+:
     git clone https://github.com/vishnu350/st
     cd st && make patch
     make install
-    fc-cache -fv
 
 To build the static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 

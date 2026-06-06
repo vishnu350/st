@@ -11,28 +11,28 @@ APPDIR=${APPDIR:-"."}
 
 # Font list (format: "Name URL")
 fonts=(
-	"CascadiaCode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
-	"CascadiaMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
-	"DejaVuSansMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
-	"FiraCode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz"
-	"FiraMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraMono.tar.xz"
+	"Caskaydiacove https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
+	"Caskaydiamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
+	"Dejavusansm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
+	"Firacode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz"
+	"Firamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraMono.tar.xz"
 	"Hack https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz"
 	"Inconsolata https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Inconsolata.tar.xz"
 	"Iosevka https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Iosevka.tar.xz"
-	"IosevkaTerm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTerm.tar.xz"
-	"IosevkaTermSlab https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTermSlab.tar.xz"
-	"JetBrainsMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
-	"LiberationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
-	"Meslo https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.tar.xz"
-	"RobotoMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/RobotoMono.tar.xz"
+	"Iosevkaterm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTerm.tar.xz"
+	"Iosevkatermslab https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTermSlab.tar.xz"
+	"Jetbrainsmono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
+	"LiterationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
+	"Meslolgm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.tar.xz"
+	"Robotomono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/RobotoMono.tar.xz"
 	"Ubuntu https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Ubuntu.tar.xz"
-	"UbuntuMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
+	"Ubuntumono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
 )
 
 # Exit function
 _exit_installer() {
 	echo "st+ post installation flow completed!"
-	echo "Rerun it again to download a different font"
+	echo "Rerun again to download a different font"
 	rm -rf "$TMPDIR"
 	exit 0
 }
@@ -106,7 +106,7 @@ fi
 selected_font="${fonts[$((choice-1))]}"
 font_name="${selected_font%% *}"
 font_url="${selected_font##* }"
-spaced_font_name=$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g')
+spaced_font_name="$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g') Nerd Font"
 
 # Install font
 wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
@@ -114,9 +114,12 @@ printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
 $SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd"
 $SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd"
 $SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd" > /dev/null
+command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
 
 # Update ~/.st.conf notification
-printf "Please update the st+ config file ~/.st.conf with new font name: \033[1m%s\033[0m\n\n" "$spaced_font_name"
+st+ -e exit >/dev/null 2>&1
+sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
+printf "The st+ config file (~/.st.conf) has been updated to use the new font: \033[1m%s\033[0m\n\n" "$spaced_font_name"
 
 # End script
 _exit_installer
