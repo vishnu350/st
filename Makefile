@@ -25,7 +25,7 @@ st: $(OBJ)
 	strip st+
 
 clean:
-	rm -rf st+ $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
+	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
 
 dist: clean
 	mkdir -p st-$(VERSION)
@@ -33,7 +33,7 @@ dist: clean
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st+-$(VERSION).tar.gz
-	# Replace icon to avoid conflict, and set to default fonts (cant be packaged)
+	# Replace icon to avoid conflict, and set to default fonts
 	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
 	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
 	make st && mkdir -p release
@@ -45,27 +45,18 @@ dist: clean
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: st
-	if [ -d $(NAUTILUS_EXT) ]; then cp -f open-terminal.py $(NAUTILUS_EXT); fi
-	wget -c "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.zip"
-	rm -rf $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
-	unzip FiraCode.zip -d $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp -f st+ $(DESTDIR)$(PREFIX)/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/st+
-	mkdir -p $(DESTDIR)$(MANPREFIX)/man1
-	sed "s/VERSION/$(VERSION)/g" < st.1 > $(DESTDIR)$(MANPREFIX)/man1/st+.1
-	chmod 644 $(DESTDIR)$(MANPREFIX)/man1/st+.1
-	tic -sx st.info
-	@echo Please see the README file regarding the terminfo entry of st+.
 	mkdir -p $(DESTDIR)$(APPPREFIX)
 	cp -f st+.desktop $(DESTDIR)$(APPPREFIX)
+	./post-install
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/st+
 	rm -f $(DESTDIR)$(APPPREFIX)/st+.desktop
 	rm -f $(DESTDIR)$(MANPREFIX)/man1/st+.1
-	rm -f $(NAUTILUS_EXT)/open-terminal.py
-	rm -rf $(DESTDIR)$(PREFIX)/share/fonts/FiraCodeNerd
+	rm -f $(DESTDIR)$(NAUTILUS_EXT)/open-terminal.py
 
 patch: clean
 	mv patches patches.bak
@@ -73,5 +64,6 @@ patch: clean
 	rm -rf patches
 	mv patches.bak patches
 	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
+	sed "s/VERSION/$(VERSION)/g" < st.1 > st+.1
 
 .PHONY: all clean dist install uninstall
