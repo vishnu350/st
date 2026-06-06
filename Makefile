@@ -44,18 +44,10 @@ dist: patch
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: st
-	mkdir -p $(DESTDIR)$(PREFIX)/bin
-	cp -f st+ $(DESTDIR)$(PREFIX)/bin
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/st+
-	mkdir -p $(DESTDIR)$(APPPREFIX)
-	cp -f st+.desktop $(DESTDIR)$(APPPREFIX)
-	./post-install
+	./post-install install
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/st+
-	rm -f $(DESTDIR)$(APPPREFIX)/st+.desktop
-	rm -f $(DESTDIR)$(MANPREFIX)/man1/st+.1
-	rm -f $(DESTDIR)$(NAUTILUS_EXT)/open-terminal.py
+	./post-install uninstall
 
 patch: clean
 	mv patches patches.bak

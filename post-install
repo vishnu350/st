@@ -1,10 +1,14 @@
 #!/bin/bash
+# move install and uninstall this script, rename to st-install
 
 # Variables (match it with config.mk)
+PREFIX="/usr/local"
+APPPREFIX="$PREFIX/share/applications"
+MANPREFIX="$PREFIX/share/man"
+FONTPREFIX="$PREFIX/share/fonts"
+NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
+TMPDIR="/tmp/st-appdir.$RANDOM"
 APPDIR=${APPDIR:-"."}
-NAUTILUS_EXT="$DESTDIR/usr/share/nautilus-python/extensions"
-MANPREFIX="$DESTDIR/usr/local/share/man"
-FONTPREFIX="$DESTDIR/usr/local/share/fonts"
 
 # Font list (format: "Name URL")
 fonts=(
@@ -30,32 +34,63 @@ fonts=(
 _exit_installer() {
 	echo "st+ post installation flow completed!"
 	echo "Rerun it again to download a different font"
+	rm -rf "$TMPDIR"
 	exit 0
 }
 
-# Uninstall prep
-if [ "$1" = "uninstall" ]; then
+# Check for sudo of doas
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-$DOAS_USER}" ]; then
+	printf "\n Please do not use \"sudo\" to execute this script.\n\n"
+	exit 1
+elif command -v sudo >/dev/null 2>&1; then
+	SUDOCMD="sudo"
+elif command -v doas >/dev/null 2>&1; then
+	SUDOCMD="doas"
+else
+	echo "ERROR: No sudo or doas found"
+	exit 1
+fi
+
+# If clean/uninstall/install was specified
+if [ "$1" = "clean" ]; then
     echo "Cleaning up st+ related files..."
-	rm -f "$MANPREFIX"/man1/st+.1
-	rm -f "$NAUTILUS_EXT"/open-terminal.py
+	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
+	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
     echo "You may now uninstall st+"
 	exit 0
+elif [ "$1" = "uninstall" ]; then
+	$SUDOCMD rm -f "$PREFIX"/bin/st+
+	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
+	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
+	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
+	exit 0
+elif [ "$1" = "install" ]; then
+	$SUDOCMD mkdir -p  "$PREFIX"/bin
+	$SUDOCMD cp -f st+ "$PREFIX"/bin
+	$SUDOCMD chmod 755 "$PREFIX"/bin/st+
+	$SUDOCMD mkdir -p  "$APPPREFIX"
+	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
 fi
+
+# Copy files to temp dir
+mkdir -p "$TMPDIR"
+cp -rf "$APPDIR"/* "$TMPDIR"/.
+cd "$TMPDIR" || exit 1
 
 # Install Gnome open terminal here extension
 if [ -d "$NAUTILUS_EXT" ]; then
-	cp -f "$APPDIR"/open-terminal.py "$NAUTILUS_EXT";
+	$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT";
 else
 	echo "Nautilus extension support not detected, skipping open-terminal install..."
 fi
 
 # Install manpage
-mkdir -p "$MANPREFIX"/man1
-cp "$APPDIR"/st+.1 "$MANPREFIX"/man1/st+.1
-chmod 644 "$MANPREFIX"/man1/st+.1
+$SUDOCMD sudo mkdir -p "$MANPREFIX"/man1
+$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
+$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
 
 # Install terminfo
-tic -sx "$APPDIR"/st.info
+$SUDOCMD tic -sx st.info
 
 # Print list of fonts to choose from
 printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
@@ -75,12 +110,11 @@ font_url="${selected_font##* }"
 spaced_font_name=$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g')
 
 # Install font
-cd /tmp && wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
+wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
 printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
-rm -rf "${FONTPREFIX}/${font_name}Nerd"
-mkdir -p "${FONTPREFIX}/${font_name}Nerd"
-tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd" > /dev/null
-rm "${font_name}.tar.xz"
+$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd"
+$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd"
+$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd" > /dev/null
 
 # Update ~/.st.conf notification
 printf "Please update the st+ config file ~/.st.conf with new font name: \033[1m%s\033[0m\n\n" "$spaced_font_name"

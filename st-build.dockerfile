@@ -6,7 +6,7 @@
 FROM debian:bullseye
 
 # Install dependencies
-RUN apt update && apt full-upgrade -y && apt install -y zip git build-essential libxft-dev pkg-config curl wget file fuse appstream
+RUN apt update && apt full-upgrade -y && apt install -y zip git build-essential libxft-dev pkg-config curl wget file fuse appstream sudo man
 
 # Copy st source code
 RUN cd && git clone https://github.com/vishnu350/st && cd st && make patch

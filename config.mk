@@ -1,20 +1,11 @@
 # st version
-VERSION = 0.9.3-7
+VERSION = 0.9.3-8
 ARCH = $(shell uname -m)
 STATIC ?= 0
 
 # Customize below to fit your system
-
-# paths
-PREFIX = /usr/local
-APPPREFIX = $(PREFIX)/share/applications
-MANPREFIX = $(PREFIX)/share/man
-
-NAUTILUS_EXT = /usr/share/nautilus-python/extensions
-
 X11INC = /usr/X11R6/include
 X11LIB = /usr/X11R6/lib
-
 PKG_CONFIG = pkg-config
 
 # includes and libs
@@ -39,7 +30,6 @@ STLDFLAGS = $(LIBS) $(LDFLAGS)
 #LIBS = -L$(X11LIB) -lm -lX11 -lutil -lXft \
 #       `$(PKG_CONFIG) --libs fontconfig` \
 #       `$(PKG_CONFIG) --libs freetype2`
-#MANPREFIX = ${PREFIX}/man
 
 # compiler and linker
 # CC = c99
