@@ -2,9 +2,10 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Simple Terminal+ is a lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
+- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `post-install` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Gnome's Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections
@@ -16,7 +17,6 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
 - Solarized dark theme
-- Fira Code nerd-fonts
 - AppImage install (AM)
 
 
@@ -41,17 +41,18 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
     am -i st+
 
-Else, you can just download the latest AppImage from the [release section](https://github.com/vishnu350/st/releases). Rename it to **st+** and place it in your system PATH. You must also manually install the st+ terminfo (required), manpage and nautilus script. Do this by running these commands from within st+ (create the dirs if needed):
+Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system PATH.
 
-    sudo tic -sx $APPDIR/st.info                                             # Required
-    sudo cp $APPDIR/st+.1 /usr/local/share/man/man1/.                        # Optional
-    sudo cp $APPDIR/open-terminal.py /usr/share/nautilus-python/extensions/. # Optional
+Next, run the post installation setup script from within st+:
+
+    sudo $APPDIR/post-install
+
+This will download a nerdfont of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
 
 Notes on AppImage install flow:
 - AM will support auto-updates with checksum integrity verification.
-- If [AM/Appman](https://github.com/ivan-hc/AM) was not used, then the manpage, terminfo and nautilus scripts must be installed manually.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- Fira Code nerd-fonts are not included by default. You must install it manually and set it in `~/.st.conf`.
+- Prior to removing st+ from your system, remember to run the cleanup script via `sudo $APPDIR/post-install uninstall`.
 
 
 # Installation (Manual Build)
@@ -78,8 +79,7 @@ To build the static binaries for distribution/release, do it from within an st-b
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny ~90KB in size.
-- Fira Code nerd-fonts are bundled and enabled by default.
-- Manpage, terminfo and nautilus scripts will be installed automatically if appropriate.
+- If you want to download more fonts, just run the post-install script again `./post-install`.
 
 
 # Configuration
