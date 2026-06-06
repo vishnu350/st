@@ -37,6 +37,7 @@ dist: clean
 	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
 	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
 	make st && mkdir -p release
+	echo "Check GLIBC versions:"; objdump -T st+ | grep GLIBC | sort
 	zip release/st+-$(VERSION)-$(ARCH)-static.zip st+
 	./portable2appimage st+ st+ $(VERSION) "vishnu350|st|latest"
 	mv st*.AppImage release/st+-$(VERSION)-$(ARCH).AppImage
