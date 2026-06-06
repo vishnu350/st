@@ -52,7 +52,7 @@ This will download a nerdfont of your choice and setup the terminfo/manpage/naut
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- Prior to removing st+ from your system, remember to run the cleanup script via `$APPDIR/st-install clean`.
+- Prior to removing st+ from your system, remember to run the cleanup script: `$APPDIR/st-install clean`
 
 
 # Installation (Manual Build)
@@ -78,7 +78,8 @@ To build the static binaries for distribution/release, run the following command
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~90KB) in size.
-- If you want to download more fonts, just run the st-install script again: `./st-install`.
+- If you want to download more fonts, just run the install flow again: `make install`
+- To uninstall st+ from your system: `make uninstall`
 
 
 # Configuration
