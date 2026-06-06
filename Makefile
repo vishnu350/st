@@ -27,7 +27,7 @@ st: $(OBJ)
 clean:
 	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
 
-dist: clean
+dist: patch
 	mkdir -p st-$(VERSION)
 	cp -R FAQ LEGACY TODO LICENSE Makefile README.md config.mk\
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
