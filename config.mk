@@ -23,7 +23,7 @@ ifeq ($(STATIC),0)
 # Default dynamically linked library
 LIBS = -lm -lutil `$(PKG_CONFIG) --libs x11 xft fontconfig freetype2`
 else
-# Customized library order for static linking (all except system libs), use Debian Bullseye (EOL:08/2026)
+# Customized library order for static linking (all except system libs), use st-build container
 LIBS = -static-libgcc \
        -Wl,-Bstatic -lpng16 -lexpat -lz \
        -Wl,-Bdynamic -lm -lutil -lfreetype -lfontconfig -lX11 -lXft
