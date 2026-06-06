@@ -5,7 +5,7 @@
 Simple Terminal+ is a lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
-- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `post-install` script.
+- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-install` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Gnome's Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections
@@ -43,23 +43,23 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
 Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system PATH.
 
-Next, run the post installation setup script from within st+:
+Next, run the st install script from within st+ (root is required):
 
-    sudo $APPDIR/post-install
+    $APPDIR/st-install
 
 This will download a nerdfont of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
 
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- Prior to removing st+ from your system, remember to run the cleanup script via `sudo $APPDIR/post-install uninstall`.
+- Prior to removing st+ from your system, remember to run the cleanup script via `$APPDIR/st-install clean`.
 
 
 # Installation (Manual Build)
 
 You will need the following packages:
 
-    sudo apt install build-essential libxft-dev pkg-config python3-nautilus
+    sudo apt install build-essential libxft-dev pkg-config wget python3-nautilus
 
 To avoid conflicts, default nautilus open terminal extension should be removed (if applicable):
 
@@ -72,14 +72,14 @@ To compile and install st+:
     sudo make install
     fc-cache -fv
 
-To build the static binaries for distribution/release, do it from within an st-build container:
+To build the static binaries for distribution/release, run the following command from within an st-build container:
 
     make dist STATIC=1
 
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~90KB) in size.
-- If you want to download more fonts, just run the post-install script again: `./post-install`.
+- If you want to download more fonts, just run the st-install script again: `./st-install`.
 
 
 # Configuration

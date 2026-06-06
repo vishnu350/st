@@ -1,5 +1,4 @@
 #!/bin/bash
-# move install and uninstall this script, rename to st-install
 
 # Variables (match it with config.mk)
 PREFIX="/usr/local"

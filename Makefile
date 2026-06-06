@@ -44,10 +44,10 @@ dist: patch
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: st
-	./post-install install
+	./st-install install
 
 uninstall:
-	./post-install uninstall
+	./st-install uninstall
 
 patch: clean
 	mv patches patches.bak
