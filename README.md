@@ -43,7 +43,7 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
 Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system PATH.
 
-Next, run the st install script from within st+ (root is required):
+Next, run the st install script from within st+ (it will ask for root):
 
     $APPDIR/st-install
 
