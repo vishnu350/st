@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Variables (match it with config.mk)
+APPDIR=${APPDIR:-"."}
+NAUTILUS_EXT="$DESTDIR/usr/share/nautilus-python/extensions"
+MANPREFIX="$DESTDIR/usr/local/share/man"
+FONTPREFIX="$DESTDIR/usr/local/share/fonts"
+
+# Font list (format: "Name URL")
+fonts=(
+	"CascadiaCode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
+	"CascadiaMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
+	"DejaVuSansMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
+	"FiraCode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz"
+	"FiraMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraMono.tar.xz"
+	"Hack https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz"
+	"Inconsolata https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Inconsolata.tar.xz"
+	"Iosevka https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Iosevka.tar.xz"
+	"IosevkaTerm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTerm.tar.xz"
+	"IosevkaTermSlab https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTermSlab.tar.xz"
+	"JetBrainsMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
+	"LiberationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
+	"Meslo https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.tar.xz"
+	"RobotoMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/RobotoMono.tar.xz"
+	"Ubuntu https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Ubuntu.tar.xz"
+	"UbuntuMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
+)
+
+# Exit function
+_exit_installer() {
+	echo "st+ post installation flow completed!"
+	echo "Rerun it again to download a different font"
+	exit 0
+}
+
+# Uninstall prep
+if [ "$1" = "uninstall" ]; then
+    echo "Cleaning up st+ related files..."
+	rm -f "$MANPREFIX"/man1/st+.1
+	rm -f "$NAUTILUS_EXT"/open-terminal.py
+    echo "You may now uninstall st+"
+	exit 0
+fi
+
+# Install Gnome open terminal here extension
+if [ -d "$NAUTILUS_EXT" ]; then
+	cp -f "$APPDIR"/open-terminal.py "$NAUTILUS_EXT";
+else
+	echo "Nautilus extension support not detected, skipping open-terminal install..."
+fi
+
+# Install manpage
+mkdir -p "$MANPREFIX"/man1
+cp "$APPDIR"/st+.1 "$MANPREFIX"/man1/st+.1
+chmod 644 "$MANPREFIX"/man1/st+.1
+
+# Install terminfo
+tic -sx "$APPDIR"/st.info
+
+# Print list of fonts to choose from
+printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
+for i in "${!fonts[@]}"; do
+    echo "$((i+1)). ${fonts[$i]%% *}"
+done
+
+# Process user input
+read -rp "Enter the number of the font to install (select 0 to skip): " choice
+if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
+    echo "Invalid selection, skipping font installation step."
+	_exit_installer
+fi
+selected_font="${fonts[$((choice-1))]}"
+font_name="${selected_font%% *}"
+font_url="${selected_font##* }"
+spaced_font_name=$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g')
+
+# Install font
+cd /tmp && wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
+printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
+rm -rf "${FONTPREFIX}/${font_name}Nerd"
+mkdir -p "${FONTPREFIX}/${font_name}Nerd"
+tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd" > /dev/null
+rm "${font_name}.tar.xz"
+
+# Update ~/.st.conf notification
+printf "Please update the st+ config file ~/.st.conf with new font name: \033[1m%s\033[0m\n\n" "$spaced_font_name"
+
+# End script
+_exit_installer
+
