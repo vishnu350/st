@@ -33,9 +33,8 @@ dist: patch
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st+-$(VERSION).tar.gz
-	# Replace icon to avoid conflict, and set to default fonts
+	# Replace icon to avoid conflict
 	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
-	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
 	make st && mkdir -p release
 	echo "Check GLIBC versions:"; objdump -T st+ | grep GLIBC | sort
 	zip release/st+-$(VERSION)-$(ARCH)-static.zip st+
