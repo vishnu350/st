@@ -32,9 +32,10 @@ APPDIR="$APP.AppDir"
 mkdir -p "$APP"-workdir.tmp "$APPDIR"
 rm -Rf ./*.AppDir/* ./"$APP"-workdir.tmp/*
 cp "$FILE" "$APP"-workdir.tmp/
+cp post_install.sh > "$APP"-workdir.tmp/
 cp st.info "$APP"-workdir.tmp/
 cp open-terminal.py "$APP"-workdir.tmp/
-sed "s/VERSION/$VERSION/g" < st.1 > "$APP"-workdir.tmp/st+.1
+cp st+.1 > "$APP"-workdir.tmp/
 cd "$APP"-workdir.tmp || exit 1
 
 ################################################
