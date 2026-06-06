@@ -2,7 +2,7 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://github.com/ryanoasis/nerd-fonts). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
@@ -71,13 +71,13 @@ To compile and install st+:
     sudo make install
     fc-cache -fv
 
-To build the static binaries for distribution/release:
+To build the static binaries for distribution/release, do it from within an st-build container:
 
     make dist STATIC=1
 
 Notes on manual install flow:
 - No auto-updates.
-- Compiled binary size will be tiny ~100Kb in size.
+- Compiled binary size will be tiny ~90KB in size.
 - Fira Code nerd-fonts are bundled and enabled by default.
 - Manpage, terminfo and nautilus scripts will be installed automatically if appropriate.
 
