@@ -22,6 +22,7 @@ $(OBJ): config.h config.mk
 
 st: $(OBJ)
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
+	strip st+
 
 clean:
 	rm -rf st+ $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
@@ -37,7 +38,6 @@ dist: clean
 	sed -i 's/Fira Code Nerd Font:pixelsize=15/Liberation Mono:pixelsize=14/' config.def.h
 	make st && mkdir -p release
 	zip release/st+-$(VERSION)-$(ARCH)-static.zip st+
-	chmod +x portable2appimage
 	./portable2appimage st+ st+ $(VERSION) "vishnu350|st|latest"
 	mv st*.AppImage release/st+-$(VERSION)-$(ARCH).AppImage
 	mv st*.AppImage.zsync release/st+-$(VERSION)-$(ARCH).AppImage.zsync
