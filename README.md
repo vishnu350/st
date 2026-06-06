@@ -50,7 +50,7 @@ Next, run the post installation setup script from within st+:
 This will download a nerdfont of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
 
 Notes on AppImage install flow:
-- AM will support auto-updates with checksum integrity verification.
+- [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
 - Prior to removing st+ from your system, remember to run the cleanup script via `sudo $APPDIR/post-install uninstall`.
 
@@ -78,8 +78,8 @@ To build the static binaries for distribution/release, do it from within an st-b
 
 Notes on manual install flow:
 - No auto-updates.
-- Compiled binary size will be tiny ~90KB in size.
-- If you want to download more fonts, just run the post-install script again `./post-install`.
+- Compiled binary size will be tiny (~90KB) in size.
+- If you want to download more fonts, just run the post-install script again: `./post-install`.
 
 
 # Configuration
