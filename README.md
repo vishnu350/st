@@ -52,7 +52,8 @@ This will download a nerd-font of your choice and setup the terminfo/manpage/nau
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- Prior to removing st+ from your system, remember to run the cleanup script via `$APPDIR/st-config clean`.
+- If you want to download/configure more fonts, just rerun the st-config script: `$APPDIR/st-config`
+- If you want to remove st+ from your system, just run the st-config script with the uninstall switch: `$APPDIR/st-config uninstall`
 
 
 # Installation (Manual Build)
@@ -61,7 +62,7 @@ You will need the following packages:
 
     sudo apt install build-essential libxft-dev pkg-config wget python3-nautilus
 
-To avoid conflicts, default nautilus open terminal extension should be removed (if applicable):
+To avoid conflicts, the default nautilus open terminal extension should be removed if installed:
 
     sudo apt remove nautilus-extension-gnome-terminal
 
@@ -71,14 +72,15 @@ To compile and install st+ (needs root):
     cd st && make patch
     make install
 
-**Only for devs**: To build the static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
+**Only for devs**: To build static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
     make dist STATIC=1
 
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~100KB) in size.
-- If you want to download/configure more fonts, just run the install flow again: `make install`.
+- If you want to download/configure more fonts, just rerun the install flow: `make install`
+- If you want to remove st+ from your system, just run the uninstall flow: `make uninstall`
 
 
 # Configuration

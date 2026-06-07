@@ -67,7 +67,7 @@ if [ "$1" = "uninstall" ]; then
 	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
 	# Remove fonts
-	read -rp "Remove all Nerd fonts? (y/n): " answer
+	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
 	# Check if st+ is installed via AM and trigger uninstall
 	test -f /opt/st+/remove && /opt/st+/remove
