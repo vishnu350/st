@@ -70,7 +70,7 @@ if [ "$1" = "uninstall" ]; then
 	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
 	# Check if st+ is installed via AM and trigger uninstall
-	test -f /opt/st+/remove && /opt/st+/remove
+	test -f /opt/st+/remove && $SUDOCMD /opt/st+/remove
 	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
 	exit 0
 elif [ "$1" = "install" ]; then
