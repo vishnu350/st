@@ -7,7 +7,6 @@ MANPREFIX="$PREFIX/share/man"
 FONTPREFIX="$PREFIX/share/fonts"
 NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
 TMPDIR="/tmp/st-appdir.$RANDOM"
-APPDIR=${APPDIR:-"."}
 
 # Font list (format: "Name URL")
 fonts=(
@@ -29,37 +28,38 @@ fonts=(
 )
 
 # Function to handle Ctrl+C
-handle_interrupt() {
-	echo -e "\nOperation cancelled by user (Ctrl+C)"
+_error_handler() {
+	echo -e "\nError detected or operation canceled by user (Ctrl+C)"
 	rm -rf "$TMPDIR"
-	exit 130
+	exit 1
 }
 
-# Exit function
+# Successful exit function
 _exit_installer() {
-	echo "Configuration for st+ completed! Rerun again to download a different font."
+	echo "Configuration for st+ completed! Rerun again to download & configure a different font."
 	rm -rf "$TMPDIR"
 	exit 0
 }
 
 # Set trap for SIGINT (Ctrl+C)
-trap handle_interrupt SIGINT
+trap _error_handler SIGINT
 
 # Check for sudo of doas
 if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-$DOAS_USER}" ]; then
-	printf "\n Please do not use \"sudo\" to execute this script.\n\n"
-	exit 1
+	echo "ERROR: Do not use sudo to execute this script."
+	_error_handler
 elif command -v sudo >/dev/null 2>&1; then
 	SUDOCMD="sudo"
 elif command -v doas >/dev/null 2>&1; then
 	SUDOCMD="doas"
 else
 	echo "ERROR: No sudo or doas found"
-	exit 1
+	_error_handler
 fi
 
 # If uninstall/install was specified
 if [ "$1" = "uninstall" ]; then
+	# AppImage or make uninstall flow
 	echo "This will uninstall st+ from your system."
 	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
 	$SUDOCMD rm -f "$PREFIX"/bin/st+
@@ -69,22 +69,25 @@ if [ "$1" = "uninstall" ]; then
 	# Remove fonts
 	read -rp "Remove all Nerd fonts? (y/n): " answer
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
-	# Check if AM st+ is installed, then remove it
+	# Check if st+ is installed via AM and trigger uninstall
 	test -f /opt/st+/remove && /opt/st+/remove
-	echo "All st+ related files have been removed, please close all st+ terminals if still open."
+	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
 	exit 0
 elif [ "$1" = "install" ]; then
+	# make install flow
+	[[ -n $APPDIR ]] && echo "ERROR: Incorrect option selected from within AppImage." && _error_handler
 	$SUDOCMD mkdir -p  "$PREFIX"/bin
-	$SUDOCMD cp -f st+ "$PREFIX"/bin || exit 1
+	$SUDOCMD cp -f st+ "$PREFIX"/bin || _error_handler
 	$SUDOCMD chmod 755 "$PREFIX"/bin/st+
 	$SUDOCMD mkdir -p  "$APPPREFIX"
 	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
+else
+	# AppImage config flow (copy $APPDIR contents to temp dir)
+	[[ -n $APPDIR ]] && echo "ERROR: \$APPDIR variable is missing." && _error_handler
+	mkdir -p "$TMPDIR"
+	cp -rf "$APPDIR"/* "$TMPDIR"/.
+	cd "$TMPDIR" || _error_handler
 fi
-
-# Copy files to temp dir
-mkdir -p "$TMPDIR"
-cp -rf "$APPDIR"/* "$TMPDIR"/.
-cd "$TMPDIR" || exit 1
 
 # Install Gnome open terminal here extension
 if [ -d "$NAUTILUS_EXT" ]; then
@@ -118,8 +121,8 @@ font_name="${selected_font%% *}"
 font_url="${selected_font##* }"
 spaced_font_name="$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g') Nerd Font"
 
-# Install font
-if [ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]; then
+# Download and install font (if dir doesn't exist OR is at least 6 months old)
+if [[ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]] || find "${FONTPREFIX}/${font_name}Nerd-ST" -maxdepth 1 -type d -mtime +180 -print -quit | grep -q .; then
 	wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
 	printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
 	$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd-ST"
@@ -127,13 +130,13 @@ if [ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]; then
 	$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd-ST" > /dev/null
 	command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
 else
-	printf "\nSelected font is already installed.\n\n"
+	printf "\nSelected font is already installed recently, update not needed.\n\n"
 fi
 
 # Select font size to use
 read -rp "Enter the font size to use: " font_size
 if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
-	echo "Invalid size, skipping font size selection step."
+	echo "Invalid size, selecting default font size."
 	font_size=14
 fi
 
