@@ -30,9 +30,9 @@ fonts=(
 
 # Function to handle Ctrl+C
 handle_interrupt() {
-    echo -e "\nOperation cancelled by user (Ctrl+C)"
+	echo -e "\nOperation cancelled by user (Ctrl+C)"
 	rm -rf "$TMPDIR"
-    exit 130
+	exit 130
 }
 
 # Exit function
@@ -71,7 +71,7 @@ if [ "$1" = "uninstall" ]; then
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
 	# Check if AM st+ is installed, then remove it
 	test -f /opt/st+/remove && /opt/st+/remove
-    echo "All st+ related files have been removed, please close all st+ terminals if still open."
+	echo "All st+ related files have been removed, please close all st+ terminals if still open."
 	exit 0
 elif [ "$1" = "install" ]; then
 	$SUDOCMD mkdir -p  "$PREFIX"/bin
@@ -104,13 +104,13 @@ $SUDOCMD tic -sx st.info
 # Print list of fonts to choose from
 printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
 for i in "${!fonts[@]}"; do
-    echo "$((i+1)). ${fonts[$i]%% *}"
+	echo "$((i+1)). ${fonts[$i]%% *}"
 done
 
-# Process user input
+# Select font type
 read -rp "Enter the number of the font to install (select 0 to skip): " choice
 if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
-    echo "Invalid selection, skipping font installation step."
+	echo "Invalid selection, skipping font installation step."
 	_exit_installer
 fi
 selected_font="${fonts[$((choice-1))]}"
@@ -130,10 +130,18 @@ else
 	printf "\nSelected font is already installed.\n\n"
 fi
 
+# Select font size to use
+read -rp "Enter the font size to use: " font_size
+if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
+	echo "Invalid size, skipping font size selection step."
+	font_size=14
+fi
+
 # Update ~/.st.conf notification
 st+ -e exit >/dev/null 2>&1
 sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
-printf "The st+ config file (~/.st.conf) has been updated to use the new font: \033[1m%s\033[0m\n\n" "$spaced_font_name"
+sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" ~/.st.conf
+printf "The st+ config file (~/.st.conf) has been updated to use font: \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
 
 # End script
 _exit_installer
