@@ -44,9 +44,9 @@ _exit_installer() {
 # Set trap for SIGINT (Ctrl+C)
 trap _error_handler SIGINT
 
-# Check for sudo of doas
+# Check for sudo or doas
 if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-$DOAS_USER}" ]; then
-	echo "ERROR: Do not use sudo to execute this script."
+	echo "ERROR: Do not use sudo/doas to execute this script."
 	_error_handler
 elif command -v sudo >/dev/null 2>&1; then
 	SUDOCMD="sudo"
@@ -70,7 +70,7 @@ if [ "$1" = "uninstall" ]; then
 	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
 	# Check if st+ is installed via AM and trigger uninstall
-	test -f /opt/st+/remove && $SUDOCMD /opt/st+/remove
+	test -f /opt/st+/remove && am -R st+
 	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
 	exit 0
 elif [ "$1" = "install" ]; then
@@ -92,13 +92,13 @@ fi
 # Install Gnome open-terminal extension
 if [ ! -f "$NAUTILUS_EXT"/open-terminal.py ] && [ -d "$NAUTILUS_EXT" ]; then
 	echo "Installing st+ Nautilus open-terminal integration..."
-	$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT";
+	$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"
 fi
 
 # Install manpage
 if [ ! -f "$MANPREFIX"/man1/st+.1 ]; then
 	echo "Installing st+ manpages..."
-	$SUDOCMD sudo mkdir -p "$MANPREFIX"/man1
+	$SUDOCMD mkdir -p "$MANPREFIX"/man1
 	$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
 	$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
 fi
