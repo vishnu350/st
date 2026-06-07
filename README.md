@@ -43,11 +43,11 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
 Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system PATH.
 
-Next, run the st install script from within st+ (needs root):
+Next, run the st-config script from within the st+ terminal (needs root):
 
     $APPDIR/st-config
 
-This will download a nerd-font of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
+This will download a nerd-font of your choice, configure the st+ font settings accordingly, and install the terminfo/manpage/nautilus extension (if needed).
 
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
