@@ -52,8 +52,8 @@ This will download a nerd-font of your choice and setup the terminfo/manpage/nau
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- If you want to download/configure more fonts, just rerun the st-config script: `$APPDIR/st-config`
-- If you want to remove st+ from your system, just run the st-config script with the uninstall switch: `$APPDIR/st-config uninstall`
+- To download/configure more fonts, just rerun the st-config script: `$APPDIR/st-config`
+- To remove st+ from your system, just run the st-config script with the uninstall switch: `$APPDIR/st-config uninstall`
 
 
 # Installation (Manual Build)
@@ -79,8 +79,8 @@ To compile and install st+ (needs root):
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~100KB) in size.
-- If you want to download/configure more fonts, just rerun the install flow: `make install`
-- If you want to remove st+ from your system, just run the uninstall flow: `make uninstall`
+- To download/configure more fonts, just rerun the install flow: `make install`
+- To remove st+ from your system, just run the uninstall flow: `make uninstall`
 
 
 # Configuration
