@@ -36,7 +36,7 @@ _error_handler() {
 
 # Successful exit function
 _exit_installer() {
-	echo "Configuration for st+ completed! Rerun again to download & configure a different font."
+	echo "Configuration for st+ completed, please restart it."
 	rm -rf "$TMPDIR"
 	exit 0
 }
@@ -83,26 +83,33 @@ elif [ "$1" = "install" ]; then
 	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
 else
 	# AppImage config flow (copy $APPDIR contents to temp dir)
-	[[ -n $APPDIR ]] && echo "ERROR: \$APPDIR variable is missing." && _error_handler
+	[[ -z $APPDIR ]] && echo "ERROR: \$APPDIR variable is missing." && _error_handler
 	mkdir -p "$TMPDIR"
 	cp -rf "$APPDIR"/* "$TMPDIR"/.
 	cd "$TMPDIR" || _error_handler
 fi
 
-# Install Gnome open terminal here extension
-if [ -d "$NAUTILUS_EXT" ]; then
+# Install Gnome open-terminal extension
+if [ ! -f "$NAUTILUS_EXT"/open-terminal.py ] && [ -d "$NAUTILUS_EXT" ]; then
+	echo "Installing st+ Nautilus open-terminal integration..."
 	$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT";
-else
-	echo "Nautilus extension support not detected, skipping open-terminal install..."
 fi
 
 # Install manpage
-$SUDOCMD sudo mkdir -p "$MANPREFIX"/man1
-$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
-$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
+if [ ! -f "$MANPREFIX"/man1/st+.1 ]; then
+	echo "Installing st+ manpages..."
+	$SUDOCMD sudo mkdir -p "$MANPREFIX"/man1
+	$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
+	$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
+fi
 
 # Install terminfo
-$SUDOCMD tic -sx st.info
+if command -v infocmp >/dev/null 2>&1 && command -v tic >/dev/null 2>&1; then
+	if ! infocmp st-256color > /dev/null 2>&1; then
+		echo "Installing st+ terminfo..."
+		$SUDOCMD tic -sx st.info
+	fi
+fi
 
 # Print list of fonts to choose from
 printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
@@ -144,7 +151,7 @@ fi
 st+ -e exit >/dev/null 2>&1
 sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
 sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" ~/.st.conf
-printf "The st+ config file (~/.st.conf) has been updated to use font: \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
+printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
 
 # End script
 _exit_installer
