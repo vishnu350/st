@@ -22,7 +22,7 @@ $(OBJ): config.h config.mk
 
 st: $(OBJ)
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
-	strip st+
+	#strip st+ #Do not strip binary
 
 clean:
 	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
@@ -44,10 +44,10 @@ dist: patch
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: st
-	./st-install install
+	@./st-install install
 
 uninstall:
-	./st-install uninstall
+	@./st-install uninstall
 
 patch: clean
 	mv patches patches.bak

@@ -2,7 +2,7 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Simple Terminal+ is a lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-install` script.
@@ -77,7 +77,7 @@ To build the static binaries for distribution/release, run the following command
 
 Notes on manual install flow:
 - No auto-updates.
-- Compiled binary size will be tiny (~90KB) in size.
+- Compiled binary size will be tiny (~100KB) in size.
 - If you want to download more fonts, just run the st-install script again: `./st-install`.
 
 

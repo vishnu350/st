@@ -11,31 +11,39 @@ APPDIR=${APPDIR:-"."}
 
 # Font list (format: "Name URL")
 fonts=(
-	"Caskaydiacove https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
-	"Caskaydiamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
-	"Dejavusansm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
 	"Firacode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz"
 	"Firamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraMono.tar.xz"
+	"Ubuntumono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
+	"LiterationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
+	"Caskaydiacove https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
+	"Caskaydiamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
 	"Hack https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz"
 	"Inconsolata https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Inconsolata.tar.xz"
 	"Iosevka https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Iosevka.tar.xz"
 	"Iosevkaterm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTerm.tar.xz"
 	"Iosevkatermslab https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTermSlab.tar.xz"
 	"Jetbrainsmono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
-	"LiterationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
 	"Meslolgm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.tar.xz"
 	"Robotomono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/RobotoMono.tar.xz"
-	"Ubuntu https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Ubuntu.tar.xz"
-	"Ubuntumono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
+	"Dejavusansm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
 )
+
+# Function to handle Ctrl+C
+handle_interrupt() {
+    echo -e "\nOperation cancelled by user (Ctrl+C)"
+	rm -rf "$TMPDIR"
+    exit 130
+}
 
 # Exit function
 _exit_installer() {
-	echo "st+ post installation flow completed!"
-	echo "Rerun again to download a different font"
+	echo "Configuration for st+ completed! Rerun again to download a different font."
 	rm -rf "$TMPDIR"
 	exit 0
 }
+
+# Set trap for SIGINT (Ctrl+C)
+trap handle_interrupt SIGINT
 
 # Check for sudo of doas
 if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-$DOAS_USER}" ]; then
@@ -50,22 +58,24 @@ else
 	exit 1
 fi
 
-# If clean/uninstall/install was specified
-if [ "$1" = "clean" ]; then
-    echo "Cleaning up st+ related files..."
-	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
-	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
-    echo "You may now uninstall st+"
-	exit 0
-elif [ "$1" = "uninstall" ]; then
+# If uninstall/install was specified
+if [ "$1" = "uninstall" ]; then
+	echo "This will uninstall st+ from your system."
+	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
 	$SUDOCMD rm -f "$PREFIX"/bin/st+
 	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
 	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
+	# Remove fonts
+	read -rp "Remove all Nerd fonts? (y/n): " answer
+	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
+	# Check if AM st+ is installed, then remove it
+	test -f /opt/st+/remove && /opt/st+/remove
+    echo "All st+ related files have been removed, please close all st+ terminals if still open."
 	exit 0
 elif [ "$1" = "install" ]; then
 	$SUDOCMD mkdir -p  "$PREFIX"/bin
-	$SUDOCMD cp -f st+ "$PREFIX"/bin
+	$SUDOCMD cp -f st+ "$PREFIX"/bin || exit 1
 	$SUDOCMD chmod 755 "$PREFIX"/bin/st+
 	$SUDOCMD mkdir -p  "$APPPREFIX"
 	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
@@ -109,12 +119,16 @@ font_url="${selected_font##* }"
 spaced_font_name="$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g') Nerd Font"
 
 # Install font
-wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
-printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
-$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd"
-$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd"
-$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd" > /dev/null
-command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
+if [ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]; then
+	wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
+	printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
+	$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd-ST"
+	$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd-ST"
+	$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd-ST" > /dev/null
+	command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
+else
+	printf "\nSelected font is already installed.\n\n"
+fi
 
 # Update ~/.st.conf notification
 st+ -e exit >/dev/null 2>&1
