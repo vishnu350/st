@@ -5,7 +5,7 @@
 Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
 This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
-- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-install` script.
+- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Gnome's Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections
@@ -43,16 +43,16 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
 Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system PATH.
 
-Next, run the st install script from within st+ (root is required):
+Next, run the st install script from within st+ (needs root):
 
-    $APPDIR/st-install
+    $APPDIR/st-config
 
-This will download a nerdfont of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
+This will download a nerd-font of your choice and setup the terminfo/manpage/nautilus script. This script can be run multiple times to download additional fonts, if you wish to do so.
 
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- Prior to removing st+ from your system, remember to run the cleanup script via `$APPDIR/st-install clean`.
+- Prior to removing st+ from your system, remember to run the cleanup script via `$APPDIR/st-config clean`.
 
 
 # Installation (Manual Build)
@@ -65,20 +65,20 @@ To avoid conflicts, default nautilus open terminal extension should be removed (
 
     sudo apt remove nautilus-extension-gnome-terminal
 
-To compile and install st+:
+To compile and install st+ (needs root):
 
     git clone https://github.com/vishnu350/st
     cd st && make patch
     make install
 
-To build the static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
+**Only for devs**: To build the static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
     make dist STATIC=1
 
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~100KB) in size.
-- If you want to download more fonts, just run the st-install script again: `./st-install`.
+- If you want to download/configure more fonts, just run the install flow again: `make install`.
 
 
 # Configuration
@@ -98,6 +98,7 @@ If you like this work, please consider to:
 
 Credits to the following folk:
 - Source code and patches merged from the official suckless project page: https://st.suckless.org
-- Open terminal python script adapted from Tilix: https://github.com/gnunn1/tilix
+- The nerd-fonts team for providing the best versions of open source fonts: https://nerdfonts.com
 - Ivan's portable2appimage script: https://github.com/ivan-hc/portable2appimage
-- Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.
+- Open terminal python script adapted from Tilix: https://github.com/gnunn1/tilix
+- Original simple terminal source code is based on Aurélien Aptel's 'bt'.
