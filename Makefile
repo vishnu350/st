@@ -33,6 +33,7 @@ dist: patch
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st+-$(VERSION).tar.gz
+	rm -rf st-$(VERSION)
 	# Replace icon to avoid conflict
 	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
 	make st && mkdir -p release
