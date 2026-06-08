@@ -2,12 +2,14 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/). If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
+Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/).
 
-This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-based distros such as Debian/Ubuntu/Mint, but will work on all others as well. It is integrated with a minimal collection of essential patches along with other quality-of-life features:
+If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
+
+This is a fork of st ([suckless.org](https://st.suckless.org)) integrated with a minimal collection of essential patches and quality-of-life features baked in:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
-- Proper "Open Terminal Here" integration for Gnome's Nautilus:
+- Proper "Open Terminal Here" integration for Nautilus:
   - Supports "Open in Remote/Local Terminal" for remote connections
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)
 - Working directory (needed for "Open Terminal Here" integration)
@@ -16,8 +18,9 @@ This is a fork of st from [suckless.org](https://st.suckless.org) for Gnome-base
 - Blinking cursor (square box)
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
-- Solarized dark theme
-- AppImage install (AM)
+- Solarized dark theme (hardcoded)
+- AppImage will work even on 10 year old distros.
+- AppImage install via AM: `am i st+`
 
 
 # Motivation
