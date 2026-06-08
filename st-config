@@ -141,7 +141,7 @@ else
 fi
 
 # Select font size to use
-read -rp "Enter the font size to use: " font_size
+read -rp "Enter the font size to use (default 14): " font_size
 if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
 	echo "Invalid size, selecting default font size."
 	font_size=14
