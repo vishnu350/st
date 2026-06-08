@@ -6,7 +6,7 @@ Simple Terminal+ is a lightweight terminal (~100KB) with essential features and 
 
 If you just want a minimal, solarized, simple terminal that supports all of the mentioned features, then st+ is for you.
 
-This is a fork of st ([suckless.org](https://st.suckless.org)) integrated with a minimal collection of essential patches and quality-of-life features baked in:
+This is a fork of [st](https://st.suckless.org) integrated with a minimal collection of essential patches and quality-of-life features baked in:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Nautilus:
