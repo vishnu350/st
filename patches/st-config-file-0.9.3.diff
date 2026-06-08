@@ -12,12 +12,12 @@ index d73152b..0374918 100644
 +welcome_msg(void)
 +{
 +	// Clear screen and print welcome message
-+	const char *msg = "printf \"\\033[H\\033[2J\" && "
-+		"printf \"  ****************** \\033[1mWelcome to Simple Terminal+ (st+)\\033[0m *******************\n\" && "
-+		"printf \"  ◆ Default configuration file has been generated in: \\033[1m~/.st.conf\\033[0m\n\" && "
-+		"printf \"  ◆ To configure st+ and install nerd-fonts, run: \\033[1m\\$APPDIR/st-config\\033[0m\n\" && "
-+		"printf \"  ◆ To uninstall st+ and related files, run: \\033[1m\\$APPDIR/st-config uninstall\\033[0m\n\" && "
-+		"printf \"  ************************************************************************\n\"\n";
++	const char *msg = "printf \'\\033[H\\033[2J\' && "
++		"printf \'  ****************** \\033[1mWelcome to Simple Terminal+ (st+)\\033[0m *******************\' && echo && "
++		"printf \'  ◆ Default configuration file has been generated in: \\033[1m~/.st.conf\\033[0m\' && echo && "
++		"printf \'  ◆ To configure st+ and install nerd-fonts, run: \\033[1m$APPDIR/st-config\\033[0m\' && echo && "
++		"printf \'  ◆ To uninstall st+ and related files, run: \\033[1m$APPDIR/st-config uninstall\\033[0m\' && echo && "
++		"printf \'  ************************************************************************\' && echo \n";
 +	ttywrite(msg, strlen(msg), 1);
 +}
 +
