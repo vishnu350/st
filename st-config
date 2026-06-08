@@ -29,7 +29,7 @@ fonts=(
 
 # Function to handle Ctrl+C
 _error_handler() {
-	echo -e "\nError detected or operation canceled by user (Ctrl+C)"
+	echo -e "\n ^ Error detected or operation canceled by user (Ctrl+C)"
 	rm -rf "$TMPDIR"
 	exit 1
 }
@@ -46,7 +46,7 @@ trap _error_handler SIGINT
 
 # Check for sudo or doas
 if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-$DOAS_USER}" ]; then
-	echo "ERROR: Do not use sudo/doas to execute this script."
+	echo "ERROR: Do not use sudo/doas to execute this command."
 	_error_handler
 elif command -v sudo >/dev/null 2>&1; then
 	SUDOCMD="sudo"
