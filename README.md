@@ -2,9 +2,11 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
+Modern terminal emulators have grown bloated, packing in features you'll never use and emulating obscure terminals you'll never need.
+
 Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/).
 
-If you just want a minimal, solarized terminal with all the mentioned features, st+ is for you. It is a fork of [st](https://st.suckless.org) integrated with a minimal collection of essential patches and quality-of-life features baked in:
+If you just want a minimal, solarized terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
 - Basic configuration file in `~/.st.conf` (eg. changing font settings)
 - Proper "Open Terminal Here" integration for Nautilus:
@@ -19,21 +21,6 @@ If you just want a minimal, solarized terminal with all the mentioned features, 
 - Solarized dark theme (hardcoded)
 - AppImage will work even on 10 year old distros.
 - AppImage install via AM: `am i st+`
-
-
-# Motivation
-
-Modern terminals are just huge.
-
-Here's an excerpt from the **xterm(1) README**:
-
-> Abandon All Hope, Ye Who Enter Here
-
-> This is undoubtedly the most ugly program in the distribution. It was one of the first "serious" programs ported, and still has a lot of historical baggage. Ideally, there would be a general tty widget and then vt102 and tek4014 subwidgets so that they could be used in other programs. We are trying to clean things up as we go, but there is still a lot of work to do.
-
-It has over 65K lines of code and emulates obscure and obsolete terminals you will never need.
-
-The popular alternative, rxvt has only 32K lines of code. This is just too much for something as simple as a terminal emulator; it's yet another example of code complexity.
 
 
 # Installation (AppImage)
