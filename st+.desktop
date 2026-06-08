@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Exec=sh -c "command -v tmux >/dev/null 2>&1 && st+ -t 'st+tmux' -e tmux new -A -s st_session || st+"
+Exec=st+ -t st+ -e sh -c 'command -v tmux >/dev/null 2>&1 && exec tmux new -A -s st_session || exec ${SHELL:-/bin/sh}'
 TryExec=st+
 Icon=utilities-terminal
 Terminal=false

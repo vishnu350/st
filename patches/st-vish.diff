@@ -78,3 +78,16 @@ index 39120b4..3747877 100644
  is a simple terminal emulator.
  .SH OPTIONS
  .TP
+diff --git a/x.c b/x.c
+index a0dc48c..a731789 100644
+--- a/x.c
++++ b/x.c
+@@ -2213,7 +2213,7 @@ run:
+ 		opt_cmd = argv;
+ 
+ 	if (!opt_title)
+-		opt_title = (opt_line || !opt_cmd) ? "st" : opt_cmd[0];
++		opt_title = (opt_line || !opt_cmd) ? "st+" : opt_cmd[0];
+ 
+ 	load_config(); //Loads values from config file
+ 	setlocale(LC_CTYPE, "");
