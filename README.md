@@ -18,7 +18,7 @@ If you just want a minimal, solarized terminal with essential features, st+ is f
 - Blinking cursor (square box)
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
-- Solarized dark theme (hardcoded)
+- Solarized dark theme (customizable through ~/.st.conf)
 - AppImage will work even on 10 year old distros.
 - AppImage install via AM: `am i st+`
 
@@ -77,7 +77,7 @@ Configuration values such as font settings and alpha values will be stored in `~
 
 If this file does not exist or was deleted, it will be regenerated with safe defaults.
 
-Supported configuration values: `font alpha rows cols`
+Supported configuration values: `font rows cols alpha colorname defaultfg defaultbg defaultcs defaultrcs`
 
 
 # Contribute
