@@ -2,7 +2,7 @@ diff --git a/x.c b/x.c
 index d73152b..0374918 100644
 --- a/x.c
 +++ b/x.c
-@@ -254,6 +254,67 @@ static char *opt_title = NULL;
+@@ -254,6 +254,86 @@ static char *opt_title = NULL;
  
  static uint buttons; /* bit field of pressed buttons */
  
@@ -28,6 +28,7 @@ index d73152b..0374918 100644
 +	char path[256];
 +	char line[256];
 +	char results[128];
++	unsigned char n;
 +
 +	// Open and read config file
 +	const char *home = getenv("HOME");
@@ -41,9 +42,15 @@ index d73152b..0374918 100644
 +		fp = fopen(path, "w");
 +		if (!fp) return;
 +		fprintf(fp, "font=\"%s\"\n", font);
-+		fprintf(fp, "alpha=\"%f\"\n", alpha);
 +		fprintf(fp, "rows=\"%d\"\n", rows);
 +		fprintf(fp, "cols=\"%d\"\n", cols);
++		fprintf(fp, "alpha=\"%f\"\n", alpha);
++		for (n=0; n<16; n++)
++			fprintf(fp, "colorname[%d]=\"%s\"\n", n, colorname[n]);
++		fprintf(fp, "defaultfg=\"%d\"\n", defaultfg);
++		fprintf(fp, "defaultbg=\"%d\"\n", defaultbg);
++		fprintf(fp, "defaultcs=\"%d\"\n", defaultcs);
++		fprintf(fp, "defaultrcs=\"%d\"\n", defaultrcs);
 +		fclose(fp);
 +		return;
 +	}
@@ -51,15 +58,27 @@ index d73152b..0374918 100644
 +	// Scan configuration values
 +	while (fgets(line, sizeof(line), fp)) {
 +		if (sscanf(line, "font=\"%127[^\"]\"", results) == 1) {
-+			font = malloc(strlen(results) + 1);
++			font = xmalloc(strlen(results) + 1);
 +			strcpy(font, results);
 +		}
-+		if (sscanf(line, "alpha=\"%5[^\"]\"", results) == 1)
-+			alpha = strtof(results, NULL);
-+		if (sscanf(line, "rows=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "rows=\"%5[^\"]\"", results) == 1)
 +			rows = strtol(results, NULL, 10);
-+		if (sscanf(line, "cols=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "cols=\"%5[^\"]\"", results) == 1)
 +			cols = strtol(results, NULL, 10);
++		else if (sscanf(line, "alpha=\"%5[^\"]\"", results) == 1)
++			alpha = strtof(results, NULL);
++		else if (sscanf(line, "colorname[%d]=\"%7[^\"]\"", &n, results) == 2) {
++			colorname[n] = xmalloc(7);
++			strncpy(colorname[n], results, 7);
++		}
++		else if (sscanf(line, "defaultfg=\"%5[^\"]\"", results) == 1)
++			defaultfg = strtol(results, NULL, 10);
++		else if (sscanf(line, "defaultbg=\"%5[^\"]\"", results) == 1)
++			defaultbg = strtol(results, NULL, 10);
++		else if (sscanf(line, "defaultcs=\"%5[^\"]\"", results) == 1)
++			defaultcs = strtol(results, NULL, 10);
++		else if (sscanf(line, "defaultrcs=\"%5[^\"]\"", results) == 1)
++			defaultrcs = strtol(results, NULL, 10);
 +	}
 +
 +	// Overwrite options and close file
