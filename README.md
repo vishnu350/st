@@ -19,8 +19,8 @@ If you just want a minimal, solarized terminal with essential features, st+ is f
 - One clipboard (better cut/paste)
 - Fullscreen support (F11/Alt-Enter)
 - Solarized dark theme (customizable through ~/.st.conf)
-- AppImage will work even on 10 year old distros.
-- AppImage install via AM: `am i st+`
+- AppImage version will work even on 10 year old distros.
+- Easy AppImage install flow via AM: `am i st+`
 
 
 # Installation (AppImage)
