@@ -113,7 +113,7 @@ index 39120b4..4e7b1f1 100644
 +can be customized by editing the
 +.B ~/.st.conf
 +configuration file. Supported configuration values:
-+.B font alpha rows cols
++.B font rows cols alpha colorname defaultfg defaultbg defaultcs defaultrcs
 +
 +If this file does not exist or was deleted, it will be regenerated with safe defaults.
  .SH AUTHORS
