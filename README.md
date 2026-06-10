@@ -8,17 +8,17 @@ Simple Terminal+ is a lightweight terminal (~100KB) with essential features and 
 
 If you just want a minimal, solarized terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
-- Basic configuration file in `~/.st.conf` (eg. changing font settings)
+- Basic configuration file in `~/.st.conf` (eg. changing font settings).
 - Proper "Open Terminal Here" integration for Nautilus:
-  - Supports "Open in Remote/Local Terminal" for remote connections
-- Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn)
-- Working directory (needed for "Open Terminal Here" integration)
-- Desktop entry (for menu shortcuts)
-- Alpha (transparent backgrounds)
-- Blinking cursor (square box)
-- One clipboard (better cut/paste)
-- Fullscreen support (F11/Alt-Enter)
-- Solarized dark theme (customizable through ~/.st.conf)
+  - Supports "Open in Remote/Local Terminal" for remote connections.
+- Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn).
+- Working directory (needed for "Open Terminal Here" integration).
+- Desktop entry (for menu shortcuts).
+- Alpha (transparent backgrounds).
+- Blinking cursor (square box).
+- One clipboard (better cut/paste).
+- Fullscreen support (F11/Alt-Enter).
+- Customizable colorscheme (default: Solarized Dark).
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
@@ -77,7 +77,7 @@ Configuration values such as font settings and alpha values will be stored in `~
 
 If this file does not exist or was deleted, it will be regenerated with safe defaults.
 
-Supported configuration values: `font rows cols alpha colorname defaultfg defaultbg defaultcs defaultrcs`
+Supported configuration values: `font rows cols alpha colorname`
 
 
 # Contribute
