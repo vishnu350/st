@@ -119,3 +119,132 @@ index 39120b4..4e7b1f1 100644
  .SH AUTHORS
  See the LICENSE file for the authors.
  .SH LICENSE
+diff --git a/st.1 b/st.1
+index 39120b4..c88f736 100644
+--- a/st.1
++++ b/st.1
+@@ -1,8 +1,8 @@
+-.TH ST 1 st\-VERSION
++.TH ST+ 1 st+\-VERSION
+ .SH NAME
+-st \- simple terminal
++st+ \- simple terminal+
+ .SH SYNOPSIS
+-.B st
++.B st+
+ .RB [ \-aiv ]
+ .RB [ \-c
+ .IR class ]
+@@ -26,7 +26,7 @@ st \- simple terminal
+ .IR command
+ .RI [ arguments ...]]
+ .PP
+-.B st
++.B st+
+ .RB [ \-aiv ]
+ .RB [ \-c
+ .IR class ]
+@@ -48,8 +48,18 @@ st \- simple terminal
+ .IR line
+ .RI [ stty_args ...]
+ .SH DESCRIPTION
+-.B st
++.B st+
+ is a simple terminal emulator.
++.SH APPIMAGE OPTIONS
++This section describes AppImage-specific commands and options. Run these commands from within the st+ terminal (requires root).
++
++.TP
++.B $APPDIR/st-config
++Downloads additional fonts and configures st+.
++
++.TP
++.B $APPDIR/st-config uninstall
++Uninstalls st+ and removes related files from the system.
+ .SH OPTIONS
+ .TP
+ .B \-a
+@@ -61,7 +71,7 @@ defines the window class (default $TERM).
+ .BI \-f " font"
+ defines the
+ .I font
+-to use when st is run.
++to use when st+ is run.
+ .TP
+ .BI \-g " geometry"
+ defines the X11 geometry string.
+@@ -78,17 +88,17 @@ defines the window instance name (default $TERM).
+ .BI \-o " iofile"
+ writes all the I/O to
+ .I iofile.
+-This feature is useful when recording st sessions. A value of "-" means
++This feature is useful when recording st+ sessions. A value of "-" means
+ standard output.
+ .TP
+ .BI \-T " title"
+-defines the window title (default 'st').
++defines the window title (default 'st+').
+ .TP
+ .BI \-t " title"
+-defines the window title (default 'st').
++defines the window title (default 'st+').
+ .TP
+ .BI \-w " windowid"
+-embeds st within the window identified by
++embeds st+ within the window identified by
+ .I windowid
+ .TP
+ .BI \-l " line"
+@@ -101,13 +111,13 @@ should be a (pseudo-)serial device (e.g. /dev/ttyS0 on Linux for serial port
+ When this flag is given
+ remaining arguments are used as flags for
+ .BR stty(1).
+-By default st initializes the serial line to 8 bits, no parity, 1 stop bit
++By default st+ initializes the serial line to 8 bits, no parity, 1 stop bit
+ and a 38400 baud rate. The speed is set by appending it as last argument
+-(e.g. 'st -l /dev/ttyS0 115200'). Arguments before the last one are
++(e.g. 'st+ -l /dev/ttyS0 115200'). Arguments before the last one are
+ .BR stty(1)
+-flags. If you want to set odd parity on 115200 baud use for example 'st -l
++flags. If you want to set odd parity on 115200 baud use for example 'st+ -l
+ /dev/ttyS0 parenb parodd 115200'. Set the number of bits by using for
+-example 'st -l /dev/ttyS0 cs7 115200'. See
++example 'st+ -l /dev/ttyS0 cs7 115200'. See
+ .BR stty(1)
+ for more arguments and cases.
+ .TP
+@@ -115,7 +125,7 @@ for more arguments and cases.
+ prints version information to stderr, then exits.
+ .TP
+ .BI \-e " command " [ " arguments " "... ]"
+-st executes
++st+ executes
+ .I command
+ instead of the shell.  If this is used it
+ .B must be the last option
+@@ -131,7 +141,7 @@ Break key is obtained in PC keyboards
+ pressing at the same time control and pause.
+ .TP
+ .B Ctrl-Print Screen
+-Toggle if st should print to the
++Toggle if st+ should print to the
+ .I iofile.
+ .TP
+ .B Shift-Print Screen
+@@ -160,9 +170,13 @@ Copy the selected text to the clipboard selection.
+ .B Ctrl-Shift-v
+ Paste from the clipboard selection.
+ .SH CUSTOMIZATION
+-.B st
+-can be customized by creating a custom config.h and (re)compiling the source
+-code. This keeps it fast, secure and simple.
++.B st+
++can be customized by editing the
++.B ~/.st.conf
++configuration file. Supported configuration values:
++.B font rows cols alpha colorname
++
++If this file does not exist or was deleted, it will be regenerated with safe defaults.
+ .SH AUTHORS
+ See the LICENSE file for the authors.
+ .SH LICENSE
