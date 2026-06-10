@@ -27,6 +27,14 @@ fonts=(
 	"Dejavusansm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
 )
 
+# Color scheme names
+scheme_names=("Solarized Dark" "Nord" "Catppuccin")
+
+# All color scheme data
+scheme_colors="073642 dc322f 859900 b58900 268bd2 d33682 2aa198 eee8d5 002b36 cb4b16 586e75 657b83 839496 6c71c4 93a1a1 fdf6e3 93a1a1 fdf6e3 839496 002b36
+3b4252 bf616a a3be8c ebcb8b 81a1c1 b48ead 88c0d0 e5e9f0 2e3440 d08770 4c566a d8dee9 88c0d0 b48ead 434c5e eceff4 434c5e eceff4 88c0d0 2e3440
+181825 f38ba8 a6e3a1 f9e2af 89b4fa f5c2e7 94e2d5 fdfdfd 11111b eba0ac 45475a 585b70 6c7086 cba6f7 7f849c f5e0dc 45475a f5e0dc 6c7086 11111b"
+
 # Function to handle Ctrl+C
 _error_handler() {
 	echo -e "\n ^ Error detected or operation canceled by user (Ctrl+C)"
@@ -39,6 +47,33 @@ _exit_installer() {
 	echo "Configuration for st+ completed, please restart it."
 	rm -rf "$TMPDIR"
 	exit 0
+}
+
+# Function to update color scheme
+update_colors() {
+	local choice=$1
+	local offset=$((20*(choice - 1)))
+
+	# Validate choice
+	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#scheme_names[@]} ]; then
+		echo "Invalid choice, skipping color scheme setup."
+		return 1
+	fi
+
+	# shellcheck disable=SC2206 # Split color string into array
+	local -a colors=($scheme_colors)
+
+	# Update primary 16 colors (indices 0-15)
+	for i in {0..15}; do
+		sed -i "s/^colorname\[$i\]=.*/colorname\[$i\]=\"\#${colors[$((i + offset))]}\"/" ~/.st.conf
+	done
+
+	# Update additional colors (indices 256-259)
+	for i in {0..3}; do
+		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" ~/.st.conf
+	done
+
+	echo "Color scheme updated to ${scheme_names[$choice - 1]}."
 }
 
 # Set trap for SIGINT (Ctrl+C)
@@ -111,6 +146,14 @@ if command -v infocmp >/dev/null 2>&1 && command -v tic >/dev/null 2>&1; then
 	fi
 fi
 
+# Print list of color schemes
+echo "Available color schemes:"
+for i in "${!scheme_names[@]}"; do
+	echo "$((i + 1)). ${scheme_names[$i]}"
+done
+read -rp "Enter the number of the color scheme to use: " choice
+update_colors "$choice"
+
 # Print list of fonts to choose from
 printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
 for i in "${!fonts[@]}"; do
@@ -118,7 +161,7 @@ for i in "${!fonts[@]}"; do
 done
 
 # Select font type
-read -rp "Enter the number of the font to install (select 0 to skip): " choice
+read -rp "Enter the number of the font to install: " choice
 if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
 	echo "Invalid selection, skipping font installation step."
 	_exit_installer
