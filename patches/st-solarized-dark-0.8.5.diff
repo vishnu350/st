@@ -1,8 +1,8 @@
 diff --git a/config.def.h b/config.def.h
-index 2cd740a..7ffde4d 100644
+index 2cd740a..8bdff1c 100644
 --- a/config.def.h
 +++ b/config.def.h
-@@ -94,34 +94,24 @@ char *termname = "st-256color";
+@@ -94,34 +94,32 @@ char *termname = "st-256color";
  unsigned int tabspaces = 8;
  
  /* Terminal colors (16 first used in escape sequence) */
@@ -26,14 +26,6 @@ index 2cd740a..7ffde4d 100644
 -	"magenta",
 -	"cyan",
 -	"white",
--
--	[255] = 0,
--
--	/* more colors can be added after 255 to use with DefaultXX */
--	"#cccccc",
--	"#555555",
--	"gray90", /* default foreground colour */
--	"black", /* default background colour */
 +static char *colorname[] = {
 +	/* solarized dark */
 +	"#073642",  /*  0: black    */
@@ -52,21 +44,18 @@ index 2cd740a..7ffde4d 100644
 +	"#6c71c4",  /* 13: brmagenta*/
 +	"#93a1a1",  /* 14: brcyan   */
 +	"#fdf6e3",  /* 15: brwhite  */
+ 
+ 	[255] = 0,
+ 
+ 	/* more colors can be added after 255 to use with DefaultXX */
+-	"#cccccc",
+-	"#555555",
+-	"gray90", /* default foreground colour */
+-	"black", /* default background colour */
++	"#93a1a1",  /* 256: brcyan  - CS  */
++	"#fdf6e3",  /* 257: brwhite - RCS */
++	"#839496",  /* 258: brblue  - FG  */
++	"#002b36",  /* 259: brblack - BG  */
  };
  
  
-@@ -129,10 +119,10 @@ static const char *colorname[] = {
-  * Default colors (colorname index)
-  * foreground, background, cursor, reverse cursor
-  */
--unsigned int defaultfg = 258;
--unsigned int defaultbg = 259;
--unsigned int defaultcs = 256;
--static unsigned int defaultrcs = 257;
-+unsigned int defaultfg = 12;
-+unsigned int defaultbg = 8;
-+unsigned int defaultcs = 14;
-+static unsigned int defaultrcs = 15;
- 
- /*
-  * Default shape of cursor
