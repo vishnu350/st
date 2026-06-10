@@ -2,7 +2,7 @@ diff --git a/x.c b/x.c
 index d73152b..0374918 100644
 --- a/x.c
 +++ b/x.c
-@@ -254,6 +254,86 @@ static char *opt_title = NULL;
+@@ -254,6 +254,88 @@ static char *opt_title = NULL;
  
  static uint buttons; /* bit field of pressed buttons */
  
@@ -68,16 +68,18 @@ index d73152b..0374918 100644
 +		else if (sscanf(line, "alpha=\"%5[^\"]\"", results) == 1)
 +			alpha = strtof(results, NULL);
 +		else if (sscanf(line, "colorname[%d]=\"%7[^\"]\"", &n, results) == 2) {
-+			colorname[n] = xmalloc(7);
-+			strncpy(colorname[n], results, 7);
++			if (n<16) {
++				colorname[n] = xmalloc(7);
++				strncpy(colorname[n], results, 7);
++			}
 +		}
-+		else if (sscanf(line, "defaultfg=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "defaultfg=\"%3[^\"]\"", results) == 1)
 +			defaultfg = strtol(results, NULL, 10);
-+		else if (sscanf(line, "defaultbg=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "defaultbg=\"%3[^\"]\"", results) == 1)
 +			defaultbg = strtol(results, NULL, 10);
-+		else if (sscanf(line, "defaultcs=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "defaultcs=\"%3[^\"]\"", results) == 1)
 +			defaultcs = strtol(results, NULL, 10);
-+		else if (sscanf(line, "defaultrcs=\"%5[^\"]\"", results) == 1)
++		else if (sscanf(line, "defaultrcs=\"%3[^\"]\"", results) == 1)
 +			defaultrcs = strtol(results, NULL, 10);
 +	}
 +
