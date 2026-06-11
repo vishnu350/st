@@ -58,7 +58,7 @@ _exit_config() {
 # Function to update color scheme
 _setup_colors() {
 	# Print list of color schemes
-	printf "\nAvailable color schemes:\n"
+	clear && printf "\nAvailable color schemes:\n"
 	for i in "${!scheme_names[@]}"; do
 		echo "$((i + 1)). ${scheme_names[$i]}"
 	done
@@ -76,7 +76,7 @@ _setup_colors() {
 		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || _error_handler
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
 		local offset=0
-		printf "\nUpdating color scheme to %s:\n ◆ %s\n\n" "$gogh" "$scheme_colors"
+		printf "\nUpdating color scheme to %s:\n◆ %s\n\n" "$gogh" "$scheme_colors"
 	else
 		local offset=$((19*(choice - 2)))
 		printf "\nUpdating color scheme to %s.\n\n" "${scheme_names[$choice - 1]}"
@@ -110,7 +110,7 @@ _setup_fonts() {
 	fi
 
 	# Print list of fonts to choose from
-	printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
+	clear && printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
 	for i in "${!fonts[@]}"; do
 		echo "$((i+1)). ${fonts[$i]%% *}"
 	done
