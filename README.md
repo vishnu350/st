@@ -6,11 +6,11 @@ Modern terminal emulators have grown bloated, packing in features you'll never u
 
 Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/).
 
-If you just want a minimal, solarized terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
-- Automatically install a [nerd-font](https://www.nerdfonts.com/) via the `st-config` script.
-- Basic configuration file in `~/.st.conf` (eg. changing font settings).
-- Proper "Open Terminal Here" integration for Nautilus:
-  - Supports "Open in Remote/Local Terminal" for remote connections.
+If you just want a minimal, beautiful terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
+- Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
+- Customizable color scheme (default: Solarized Dark) with built in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
+- Minimal configuration file in `~/.st.conf` (eg. changing font settings and colors).
+- Proper "Open Terminal Here" integration for Nautilus, including "Open in Remote/Local Terminal" for remote connections.
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn).
 - Working directory (needed for "Open Terminal Here" integration).
 - Desktop entry (for menu shortcuts).
@@ -18,7 +18,6 @@ If you just want a minimal, solarized terminal with essential features, st+ is f
 - Blinking cursor (square box).
 - One clipboard (better cut/paste).
 - Fullscreen support (F11/Alt-Enter).
-- Customizable colorscheme (default: Solarized Dark).
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
@@ -35,12 +34,11 @@ Next, run the st-config script from within the st+ terminal (needs root):
 
     $APPDIR/st-config
 
-This will download a nerd-font of your choice, configure the st+ font settings accordingly, and install the terminfo/manpage/nautilus extension (if needed).
+This utility will allow you to change the color scheme, download/configure a nerd-font of your choice, or install the terminfo/manpage/nautilus extension if needed.
 
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- To download/configure more fonts, just rerun the st-config script: `$APPDIR/st-config`
 - To remove st+ from your system, just run the st-config script with the uninstall switch: `$APPDIR/st-config uninstall`
 
 
@@ -89,6 +87,7 @@ If you like this work, please consider to:
 Credits to the following folk:
 - Source code and patches merged from the official suckless project page: https://st.suckless.org
 - The nerd-fonts team for providing the best versions of open source fonts: https://nerdfonts.com
+- The Gogh-Co team for the best looking color schemes out there: https://gogh-co.github.io/Gogh
 - Ivan's portable2appimage script: https://github.com/ivan-hc/portable2appimage
 - Open terminal python script adapted from Tilix: https://github.com/gnunn1/tilix
 - Original simple terminal source code is based on Aurélien Aptel's 'bt'.
