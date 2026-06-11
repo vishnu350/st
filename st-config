@@ -139,10 +139,10 @@ _setup_fonts() {
 	fi
 
 	# Select font size to use
-	read -rp "Enter the font size to use (default 14): " font_size
+	read -rp "Enter the font size to use (set to 0 for default): " font_size
 	if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
 		echo "Invalid size, selecting default font size."
-		font_size=14
+		font_size=0
 	fi
 
 	# Update ~/.st.conf

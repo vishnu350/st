@@ -1,5 +1,5 @@
 diff --git a/x.c b/x.c
-index d73152b..0374918 100644
+index d73152b..1b6372e 100644
 --- a/x.c
 +++ b/x.c
 @@ -254,6 +254,82 @@ static char *opt_title = NULL;
@@ -85,7 +85,17 @@ index d73152b..0374918 100644
  void
  clipcopy(const Arg *dummy)
  {
-@@ -1948,6 +2008,7 @@ run(void)
+@@ -994,6 +1070,9 @@ xloadfonts(const char *fontstr, double fontsize)
+ 	if (!pattern)
+ 		die("can't open font %s\n", fontstr);
+ 
++	if (fontsize == 0)
++		fontsize = 14.0 * ((float)DisplayHeight(xw.dpy, xw.scr)) / 1080.0; // calculate safe font size
++
+ 	if (fontsize > 1) {
+ 		FcPatternDel(pattern, FC_PIXEL_SIZE);
+ 		FcPatternDel(pattern, FC_SIZE);
+@@ -1948,6 +2027,7 @@ run(void)
  
  	ttyfd = ttynew(opt_line, shell, opt_io, opt_cmd);
  	cresize(w, h);
@@ -93,7 +103,7 @@ index d73152b..0374918 100644
  
  	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0};;) {
  		FD_ZERO(&rfd);
-@@ -2094,6 +2155,7 @@ run:
+@@ -2094,6 +2174,7 @@ run:
  	if (!opt_title)
  		opt_title = (opt_line || !opt_cmd) ? "st" : opt_cmd[0];
  
