@@ -4,7 +4,8 @@
 PREFIX="/usr/local"
 APPPREFIX="$PREFIX/share/applications"
 MANPREFIX="$PREFIX/share/man"
-FONTPREFIX="$PREFIX/share/fonts"
+FONTPREFIX0="$PREFIX/share/fonts"
+FONTPREFIX1="$HOME/.local/share/fonts"
 NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
 TMPDIR="/tmp/st-appdir.$RANDOM"
 
@@ -86,12 +87,12 @@ _setup_colors() {
 
 	# Update primary 16 colors (indices 0-15)
 	for i in {0..15}; do
-		sed -i "s/^colorname\[$i\]=.*/colorname\[$i\]=\"\#${colors[$((i + offset))]}\"/" ~/.st.conf
+		sed -i "s/^colorname\[$i\]=.*/colorname\[$i\]=\"\#${colors[$((i + offset))]}\"/" "$HOME"/.st.conf
 	done
 
 	# Update additional colors (indices 256-259)
 	for i in {0..2}; do
-		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" ~/.st.conf
+		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" "$HOME"/.st.conf
 	done
 
 	# Pause for any key
@@ -100,6 +101,14 @@ _setup_colors() {
 
 # Function to update color scheme
 _setup_fonts() {
+	# Setup paths if system-level (0) or local (1)
+	if [ "$1" == 0 ]; then
+		FONTPREFIX=$FONTPREFIX0
+	else
+		local SUDOCMD=""
+		FONTPREFIX=$FONTPREFIX1
+	fi
+
 	# Print list of fonts to choose from
 	printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
 	for i in "${!fonts[@]}"; do
@@ -138,8 +147,8 @@ _setup_fonts() {
 
 	# Update ~/.st.conf
 	st+ -e exit >/dev/null 2>&1
-	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
-	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" ~/.st.conf
+	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" "$HOME"/.st.conf
+	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" "$HOME"/.st.conf
 	printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
 
 	# Pause for any key
@@ -185,7 +194,8 @@ _uninstall_st() {
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
 	# Remove fonts
 	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
-	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
+	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX0}"/*Nerd-ST
+	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX1}"/*Nerd-ST
 	# Check if st+ is installed via AM and trigger uninstall
 	test -f /opt/st+/remove && am -R st+
 	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
@@ -242,16 +252,18 @@ cat << 'EOF'
 
 EOF
 printf "1. Color scheme configuration\n"
-printf "2. Font configuration \033[1m(system-level)\033[0m\n"
-printf "3. Manpage, terminfo, extension installation \033[1m(system-level)\033[0m\n"
-printf "4. Uninstall st+ and installed files \033[1m(system-level)\033[0m\n"
-printf "5. Exit st+ configurator\n\n"
+printf "2. Font configuration \033[1m(local)\033[0m\n"
+printf "3. Font configuration \033[1m(system-level)\033[0m\n"
+printf "4. Manpage, terminfo, extension installation \033[1m(system-level)\033[0m\n"
+printf "5. Uninstall st+ and installed files \033[1m(system-level)\033[0m\n"
+printf "6. Exit st+ configurator\n\n"
 read -rp "Enter your choice: " choice
 case $choice in
 	1) _setup_colors ;;
-	2) _setup_fonts ;;
-	3) _setup_extras ;;
-	4) _uninstall_st ;;
+	2) _setup_fonts 1 ;;
+	3) _setup_fonts 0 ;;
+	4) _setup_extras ;;
+	5) _uninstall_st ;;
 	*) _exit_config ;;
 esac
 done
