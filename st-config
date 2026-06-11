@@ -48,15 +48,20 @@ _error_handler() {
 }
 
 # Successful exit function
-_exit_installer() {
-	echo "Configuration for st+ completed, please restart it."
+_exit_config() {
+	printf "\nConfiguration for st+ completed, please restart it.\n\n"
 	rm -rf "$TMPDIR"
 	exit 0
 }
 
 # Function to update color scheme
-update_colors() {
-	local choice=$1
+_setup_colors() {
+	# Print list of color schemes
+	printf "\nAvailable color schemes:\n"
+	for i in "${!scheme_names[@]}"; do
+		echo "$((i + 1)). ${scheme_names[$i]}"
+	done
+	echo && read -rp "Enter the number of the color scheme to use: " choice
 
 	# Validate choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#scheme_names[@]} ]; then
@@ -66,14 +71,14 @@ update_colors() {
 
 	# If Gogh was selected
 	if [ "$choice" == 1 ]; then
-		echo; read -rp "Key in selected Gogh color scheme name: " gogh
-		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || return 1
+		echo; read -rp "Key in selected Gogh color scheme (full name): " gogh
+		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || _error_handler
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
 		local offset=0
-		echo; echo "Updating color scheme to $gogh."
+		printf "\nUpdating color scheme to %s:\n ◆ %s\n\n" "$gogh" "$scheme_colors"
 	else
 		local offset=$((19*(choice - 2)))
-		echo "Updating color scheme to ${scheme_names[$choice - 1]}."
+		printf "\nUpdating color scheme to %s.\n\n" "${scheme_names[$choice - 1]}"
 	fi
 
 	# shellcheck disable=SC2206 # Split color string into array
@@ -89,7 +94,107 @@ update_colors() {
 		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" ~/.st.conf
 	done
 
+	# Pause for any key
+	read -n 1 -rp "Press any key to return or CTRL+C to exit..."
 }
+
+# Function to update color scheme
+_setup_fonts() {
+	# Print list of fonts to choose from
+	printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
+	for i in "${!fonts[@]}"; do
+		echo "$((i+1)). ${fonts[$i]%% *}"
+	done
+
+	# Select font type
+	echo && read -rp "Enter the number of the font to install: " choice
+	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
+		echo "Invalid selection, skipping font installation step."
+		return 1
+	fi
+	selected_font="${fonts[$((choice-1))]}"
+	font_name="${selected_font%% *}"
+	font_url="${selected_font##* }"
+	spaced_font_name="$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g') Nerd Font"
+
+	# Download and install font (if dir doesn't exist OR is at least 6 months old)
+	if [[ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]] || find "${FONTPREFIX}/${font_name}Nerd-ST" -maxdepth 1 -type d -mtime +180 -print -quit | grep -q .; then
+		wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
+		printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
+		$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd-ST"
+		$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd-ST"
+		$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd-ST" > /dev/null
+		command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
+	else
+		printf "\nSelected font is already installed recently, update not needed.\n\n"
+	fi
+
+	# Select font size to use
+	read -rp "Enter the font size to use (default 14): " font_size
+	if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
+		echo "Invalid size, selecting default font size."
+		font_size=14
+	fi
+
+	# Update ~/.st.conf
+	st+ -e exit >/dev/null 2>&1
+	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
+	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" ~/.st.conf
+	printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
+
+	# Pause for any key
+	read -n 1 -rp "Press any key to return or CTRL+C to exit..."
+}
+
+# Function to install st+ extras
+_setup_extras() {
+	# Install Gnome open-terminal extension
+	if [ ! -f "$NAUTILUS_EXT"/open-terminal.py ] && [ -d "$NAUTILUS_EXT" ]; then
+		echo "Installing st+ Nautilus open-terminal integration..."
+		$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"
+	fi
+
+	# Install manpage
+	if [ ! -f "$MANPREFIX"/man1/st+.1 ]; then
+		echo "Installing st+ manpages..."
+		$SUDOCMD mkdir -p "$MANPREFIX"/man1
+		$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
+		$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
+	fi
+
+	# Install terminfo
+	if command -v infocmp >/dev/null 2>&1 && command -v tic >/dev/null 2>&1; then
+		if ! infocmp st-256color > /dev/null 2>&1; then
+			echo "Installing st+ terminfo..."
+			$SUDOCMD tic -sx st.info
+		fi
+	fi
+
+	# Pause for any key
+	echo && read -n 1 -rp "Done. Press any key to return or CTRL+C to exit..."
+}
+
+# Function to uninstall st+ from the system
+_uninstall_st() {
+	# AppImage or make uninstall flow
+	printf "\n\033[1mWARNING: This will uninstall st+ from your system !!!\033[0m\n\n"
+	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
+	$SUDOCMD rm -f "$PREFIX"/bin/st+
+	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
+	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
+	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
+	# Remove fonts
+	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
+	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
+	# Check if st+ is installed via AM and trigger uninstall
+	test -f /opt/st+/remove && am -R st+
+	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
+	exit 0
+}
+
+#####################################
+### Main program starts from here ###
+#####################################
 
 # Set trap for SIGINT (Ctrl+C)
 trap _error_handler SIGINT
@@ -109,20 +214,7 @@ fi
 
 # If uninstall/install was specified
 if [ "$1" = "uninstall" ]; then
-	# AppImage or make uninstall flow
-	echo "This will uninstall st+ from your system."
-	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
-	$SUDOCMD rm -f "$PREFIX"/bin/st+
-	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
-	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
-	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
-	# Remove fonts
-	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
-	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX}"/*Nerd-ST
-	# Check if st+ is installed via AM and trigger uninstall
-	test -f /opt/st+/remove && am -R st+
-	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
-	exit 0
+	_uninstall_st
 elif [ "$1" = "install" ]; then
 	# make install flow
 	[[ -n $APPDIR ]] && echo "ERROR: Incorrect option selected from within AppImage." && _error_handler
@@ -139,78 +231,28 @@ else
 	cd "$TMPDIR" || _error_handler
 fi
 
-# Install Gnome open-terminal extension
-if [ ! -f "$NAUTILUS_EXT"/open-terminal.py ] && [ -d "$NAUTILUS_EXT" ]; then
-	echo "Installing st+ Nautilus open-terminal integration..."
-	$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"
-fi
+# Start main menu
+while true; do
+clear
+cat << 'EOF'
 
-# Install manpage
-if [ ! -f "$MANPREFIX"/man1/st+.1 ]; then
-	echo "Installing st+ manpages..."
-	$SUDOCMD mkdir -p "$MANPREFIX"/man1
-	$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
-	$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
-fi
+╔════════════════════════════════════════╗
+║         ST+ CONFIGURATION MENU         ║
+╚════════════════════════════════════════╝
 
-# Install terminfo
-if command -v infocmp >/dev/null 2>&1 && command -v tic >/dev/null 2>&1; then
-	if ! infocmp st-256color > /dev/null 2>&1; then
-		echo "Installing st+ terminfo..."
-		$SUDOCMD tic -sx st.info
-	fi
-fi
-
-# Print list of color schemes
-echo "Available color schemes:"
-for i in "${!scheme_names[@]}"; do
-	echo "$((i + 1)). ${scheme_names[$i]}"
+EOF
+printf "1. Color scheme configuration\n"
+printf "2. Font configuration \033[1m(system-level)\033[0m\n"
+printf "3. Manpage, terminfo, extension installation \033[1m(system-level)\033[0m\n"
+printf "4. Uninstall st+ and installed files \033[1m(system-level)\033[0m\n"
+printf "5. Exit st+ configurator\n\n"
+read -rp "Enter your choice: " choice
+case $choice in
+	1) _setup_colors ;;
+	2) _setup_fonts ;;
+	3) _setup_extras ;;
+	4) _uninstall_st ;;
+	*) _exit_config ;;
+esac
 done
-read -rp "Enter the number of the color scheme to use: " choice
-update_colors "$choice"
-
-# Print list of fonts to choose from
-printf "\nRecommended fonts available for download (https://nerdfonts.com):\n"
-for i in "${!fonts[@]}"; do
-	echo "$((i+1)). ${fonts[$i]%% *}"
-done
-
-# Select font type
-read -rp "Enter the number of the font to install: " choice
-if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
-	echo "Invalid selection, skipping font installation step."
-	_exit_installer
-fi
-selected_font="${fonts[$((choice-1))]}"
-font_name="${selected_font%% *}"
-font_url="${selected_font##* }"
-spaced_font_name="$(echo "$font_name" | sed 's/\([a-z]\)\([A-Z]\)/\1 \2/g') Nerd Font"
-
-# Download and install font (if dir doesn't exist OR is at least 6 months old)
-if [[ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]] || find "${FONTPREFIX}/${font_name}Nerd-ST" -maxdepth 1 -type d -mtime +180 -print -quit | grep -q .; then
-	wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
-	printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
-	$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd-ST"
-	$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd-ST"
-	$SUDOCMD tar xvf "${font_name}.tar.xz" -C "${FONTPREFIX}/${font_name}Nerd-ST" > /dev/null
-	command -v fc-cache >/dev/null 2>&1 && fc-cache -fv >/dev/null 2>&1
-else
-	printf "\nSelected font is already installed recently, update not needed.\n\n"
-fi
-
-# Select font size to use
-read -rp "Enter the font size to use (default 14): " font_size
-if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
-	echo "Invalid size, selecting default font size."
-	font_size=14
-fi
-
-# Update ~/.st.conf notification
-st+ -e exit >/dev/null 2>&1
-sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" ~/.st.conf
-sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" ~/.st.conf
-printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
-
-# End script
-_exit_installer
 
