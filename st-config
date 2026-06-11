@@ -246,17 +246,18 @@ while true; do
 clear
 cat << 'EOF'
 
-╔════════════════════════════════════════╗
-║         ST+ CONFIGURATION MENU         ║
-╚════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════╗
+║                ST+ CONFIGURATION MENU                 ║
+╚═══════════════════════════════════════════════════════╝
 
 EOF
 printf "1. Color scheme configuration\n"
 printf "2. Font configuration \033[1m(local)\033[0m\n"
 printf "3. Font configuration \033[1m(system-level)\033[0m\n"
 printf "4. Manpage, terminfo, extension installation \033[1m(system-level)\033[0m\n"
-printf "5. Uninstall st+ and installed files \033[1m(system-level)\033[0m\n"
-printf "6. Exit st+ configurator\n\n"
+printf "5. Uninstall st+ and related files \033[1m(system-level)\033[0m\n"
+printf "6. Display st+ manpage\n"
+printf "7. Exit configurator\n\n"
 read -rp "Enter your choice: " choice
 case $choice in
 	1) _setup_colors ;;
@@ -264,6 +265,7 @@ case $choice in
 	3) _setup_fonts 0 ;;
 	4) _setup_extras ;;
 	5) _uninstall_st ;;
+	6) man st+ || read -r ;;
 	*) _exit_config ;;
 esac
 done
