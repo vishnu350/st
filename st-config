@@ -28,7 +28,7 @@ fonts=(
 )
 
 # Color scheme names
-scheme_names=("Solarized Dark" "Nord" "Catppuccin" "Gogh (https://gogh-co.github.io/Gogh)")
+scheme_names=("Gogh Color Scheme (browse collection at https://gogh-co.github.io/Gogh)" "Solarized Dark" "Nord" "Catppuccin")
 
 # All color scheme data
 scheme_colors="073642 dc322f 859900 b58900 268bd2 d33682 2aa198 eee8d5 002b36 cb4b16 586e75 657b83 839496 6c71c4 93a1a1 fdf6e3 93a1a1 fdf6e3 839496
@@ -52,7 +52,6 @@ _exit_installer() {
 # Function to update color scheme
 update_colors() {
 	local choice=$1
-	local offset=$((19*(choice - 1)))
 
 	# Validate choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#scheme_names[@]} ]; then
@@ -61,14 +60,15 @@ update_colors() {
 	fi
 
 	# If Gogh was selected
-	if [ "$choice" == ${#scheme_names[@]} ]; then
-		read -rp "Which Gogh color scheme: " gogh
-		wget "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || return 1
+	if [ "$choice" == 1 ]; then
+		echo; read -rp "Key in selected Gogh color scheme name: " gogh
+		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || return 1
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
 		local offset=0
-		echo "Color scheme updated to $gogh."
+		echo; echo "Updating color scheme to $gogh."
 	else
-		echo "Color scheme updated to ${scheme_names[$choice - 1]}."
+		local offset=$((19*(choice - 2)))
+		echo "Updating color scheme to ${scheme_names[$choice - 1]}."
 	fi
 
 	# shellcheck disable=SC2206 # Split color string into array

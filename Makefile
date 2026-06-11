@@ -22,7 +22,7 @@ $(OBJ): config.h config.mk
 
 st: $(OBJ)
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
-	#strip st+ #Do not strip binary
+	strip st+
 
 clean:
 	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
