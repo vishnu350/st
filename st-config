@@ -28,12 +28,17 @@ fonts=(
 )
 
 # Color scheme names
-scheme_names=("Gogh Color Scheme (browse collection at https://gogh-co.github.io/Gogh)" "Solarized Dark" "Nord" "Catppuccin")
+scheme_names=("Gogh Color Scheme (browse collection at https://gogh-co.github.io/Gogh)" "Solarized Dark" "Solarized Light" "Monokai Dark" "Dracula" "Nord" "One Dark" "Tomorrow" "Tomorrow Night")
 
 # All color scheme data
-scheme_colors="073642 dc322f 859900 b58900 268bd2 d33682 2aa198 eee8d5 002b36 cb4b16 586e75 657b83 839496 6c71c4 93a1a1 fdf6e3 93a1a1 fdf6e3 839496
-3b4252 bf616a a3be8c ebcb8b 81a1c1 b48ead 88c0d0 e5e9f0 2e3440 d08770 4c566a d8dee9 88c0d0 b48ead 434c5e eceff4 434c5e eceff4 88c0d0
-181825 f38ba8 a6e3a1 f9e2af 89b4fa f5c2e7 94e2d5 fdfdfd 11111b eba0ac 45475a 585b70 6c7086 cba6f7 7f849c f5e0dc 45475a f5e0dc 6c7086"
+scheme_colors="073642 dc322f 859900 cf9a6b 268bd2 d33682 2aa198 eee8d5 657b83 cb4b16 859900 cf9a6b 6c71c4 d33682 2aa198 fdf6e3 002b36 839496 839496
+eee8d5 dc322f 859900 b58900 268bd2 d33682 2aa198 002b36 657b83 cb4b16 859900 b58900 6c71c4 d33682 2aa198 073642 fdf6e3 657b83 657b83
+75715e f92672 a6e22e f4bf75 66d9ef ae81ff 2aa198 f9f8f5 272822 f92672 a6e22e f4bf75 66d9ef ae81ff 2aa198 f8f8f2 272822 f8f8f2 f8f8f2
+262626 e64747 42e66c e4f34a 9b6bdf e356a7 75d7ec f8f8f2 7a7a7a ff5555 50fa7b f1fa8c bd93f9 ff79c6 8be9fd f9f9fb 282a36 f8f8f2 f8f8f2
+3b4252 bf616a a3be8c ebcb8b 81a1c1 b48ead 88c0d0 e5e9f0 4c566a bf616a a3be8c ebcb8b 81a1c1 b48ead 8fbcbb eceff4 2e3440 d8dee9 d8dee9
+000000 e06c75 98c379 d19a66 61afef c678dd 56b6c2 abb2bf 5c6370 e06c75 98c379 d19a66 61afef c678dd 56b6c2 fffefe 1e2127 5c6370 5c6370
+e0e0e0 c82829 718c00 eab700 4271ae 8959a8 3e999f 4d4d4c 8e908c c82829 718c00 eab700 4271ae 8959a8 3e999f 1d1f21 ffffff 4d4d4c 4d4d4c
+282a2e cc6666 b5bd68 f0c674 81a2be b294bb 8abeb7 c5c8c6 969896 cc6666 b5bd68 f0c674 81a2be b294bb 8abeb7 ffffff 1d1f21 c5c8c6 c5c8c6"
 
 # Function to handle Ctrl+C
 _error_handler() {
