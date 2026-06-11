@@ -49,8 +49,8 @@ index d73152b..0374918 100644
 +		fprintf(fp, "\n## Primary 16 colors\n");
 +		for (n=0; n<16; n++)
 +			fprintf(fp, "colorname[%d]=\"%s\"\n", n, colorname[n]);
-+		fprintf(fp, "\n## Additional colors for RC, RCS, FG, BG\n");
-+		for (n=256; n<260; n++)
++		fprintf(fp, "\n## Additional colors for BG, FG, Cursor\n");
++		for (n=256; n<259; n++)
 +			fprintf(fp, "colorname[%d]=\"%s\"\n", n, colorname[n]);
 +		fclose(fp);
 +		return;
@@ -70,7 +70,7 @@ index d73152b..0374918 100644
 +		else if (sscanf(line, "alpha=\"%5[^\"]\"", results) == 1)
 +			alpha = strtof(results, NULL);
 +		else if (sscanf(line, "colorname[%d]=\"%7[^\"]\"", &n, results) == 2) {
-+			if ((n<16) || BETWEEN(n, 256, 259)) {
++			if ((n<16) || BETWEEN(n, 256, 258)) {
 +				colorname[n] = xmalloc(7);
 +				strncpy(colorname[n], results, 7);
 +			}
