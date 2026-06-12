@@ -8,24 +8,25 @@ FONTPREFIX0="$PREFIX/share/fonts"
 FONTPREFIX1="$HOME/.local/share/fonts"
 NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
 TMPDIR="/tmp/st-appdir.$RANDOM"
+NERDFONT="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
 
 # Font list (format: "Name URL")
 fonts=(
-	"Firacode https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraCode.tar.xz"
-	"Firamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/FiraMono.tar.xz"
-	"Ubuntumono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/UbuntuMono.tar.xz"
-	"LiterationMono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/LiberationMono.tar.xz"
-	"Caskaydiacove https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.tar.xz"
-	"Caskaydiamono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaMono.tar.xz"
-	"Hack https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.tar.xz"
-	"Inconsolata https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Inconsolata.tar.xz"
-	"Iosevka https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Iosevka.tar.xz"
-	"Iosevkaterm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTerm.tar.xz"
-	"Iosevkatermslab https://github.com/ryanoasis/nerd-fonts/releases/latest/download/IosevkaTermSlab.tar.xz"
-	"Jetbrainsmono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
-	"Meslolgm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Meslo.tar.xz"
-	"Robotomono https://github.com/ryanoasis/nerd-fonts/releases/latest/download/RobotoMono.tar.xz"
-	"Dejavusansm https://github.com/ryanoasis/nerd-fonts/releases/latest/download/DejaVuSansMono.tar.xz"
+	"Firacode $NERDFONT/FiraCode.tar.xz"
+	"Firamono $NERDFONT/FiraMono.tar.xz"
+	"Ubuntumono $NERDFONT/UbuntuMono.tar.xz"
+	"LiterationMono $NERDFONT/LiberationMono.tar.xz"
+	"Caskaydiacove $NERDFONT/CascadiaCode.tar.xz"
+	"Caskaydiamono $NERDFONT/CascadiaMono.tar.xz"
+	"Hack $NERDFONT/Hack.tar.xz"
+	"Inconsolata $NERDFONT/Inconsolata.tar.xz"
+	"Iosevka $NERDFONT/Iosevka.tar.xz"
+	"Iosevkaterm $NERDFONT/IosevkaTerm.tar.xz"
+	"Iosevkatermslab $NERDFONT/IosevkaTermSlab.tar.xz"
+	"Jetbrainsmono $NERDFONT/JetBrainsMono.tar.xz"
+	"Meslolgm $NERDFONT/Meslo.tar.xz"
+	"Robotomono $NERDFONT/RobotoMono.tar.xz"
+	"Dejavusansm $NERDFONT/DejaVuSansMono.tar.xz"
 )
 
 # Color scheme names
@@ -252,6 +253,7 @@ else
 fi
 
 # Start main menu
+HASH0=$(md5sum "$HOME"/.st.conf)
 while true; do
 clear
 cat << 'EOF'
@@ -261,6 +263,7 @@ cat << 'EOF'
 ╚═══════════════════════════════════════════════════════╝
 
 EOF
+[ ! "$HASH0" = "$(md5sum $HOME/.st.conf)" ] && printf "  ◆  Please restart st+ for config changes to apply\n\n"
 printf "1. Color scheme configuration\n"
 printf "2. Font download and configuration \033[1m(local)\033[0m\n"
 printf "3. Font download and configuration \033[1m(system-wide)\033[0m\n"
