@@ -70,7 +70,7 @@ _setup_colors() {
 
 	# If Gogh was selected
 	if [ "$choice" == 1 ]; then
-		printf "\nPlease browse the Gogh collection at: https://gogh-co.github.io/Gogh\n"
+		printf "\nPlease browse the Gogh collection at https://gogh-co.github.io/Gogh\n"
 		read -rp "Enter the color scheme name (eg. Monokai Soda): " gogh
 		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || _error_handler
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
