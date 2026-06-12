@@ -65,7 +65,6 @@ _setup_colors() {
 
 	# Validate choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#scheme_names[@]} ]; then
-		echo "Invalid choice, skipping color scheme setup."
 		return 1
 	fi
 
@@ -95,8 +94,16 @@ _setup_colors() {
 		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" "$HOME"/.st.conf
 	done
 
+	# Set alpha value
+	read -rp "Enter terminal window opacity value (default 0.92): " alpha
+	if ! awk -v val="$alpha" 'BEGIN { exit !(val > 0 && val < 1.0) }'; then
+		printf "Invalid choice, setting default opacity value.\n"
+		alpha=0.92
+	fi
+	sed -i "s/^alpha=\"[^:]*\"/alpha=\"${alpha}\"/" "$HOME"/.st.conf
+
 	# Pause for any key
-	read -n 1 -rp "Press any key to return or CTRL+C to exit..."
+	echo && read -n 1 -rp "Press any key to return or CTRL+C to exit..."
 }
 
 # Function to update color scheme
@@ -118,7 +125,6 @@ _setup_fonts() {
 	# Select font type
 	echo && read -rp "Enter the number of the font to install: " choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
-		echo "Invalid selection, skipping font installation step."
 		return 1
 	fi
 	selected_font="${fonts[$((choice-1))]}"
@@ -263,7 +269,7 @@ cat << 'EOF'
 ╚═══════════════════════════════════════════════════════╝
 
 EOF
-[ ! "$HASH0" = "$(md5sum $HOME/.st.conf)" ] && printf "  ◆  Please restart st+ for config changes to apply\n\n"
+[ ! "$HASH0" = "$(md5sum "$HOME"/.st.conf)" ] && printf "  ◆  Please restart st+ for config changes to apply\n\n"
 printf "1. Color scheme configuration\n"
 printf "2. Font download and configuration \033[1m(local)\033[0m\n"
 printf "3. Font download and configuration \033[1m(system-wide)\033[0m\n"
