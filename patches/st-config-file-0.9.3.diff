@@ -91,7 +91,7 @@ index d73152b..38c8f9a 100644
  
 +	// Auto-calculate suitable font size when user specifies size as 0
 +	if (FcPatternGetDouble(pattern, FC_PIXEL_SIZE, 0, &fontval) == FcResultMatch) {
-+		if (fontval == 0) fontsize = 14.0 * ((float)DisplayHeight(xw.dpy, xw.scr)) / 1080.0;
++		if ((fontval == 0) && (fontsize == 0)) fontsize = 14.0 * ((float)DisplayHeight(xw.dpy, xw.scr)) / 1080.0;
 +	}
 +
  	if (fontsize > 1) {

@@ -277,7 +277,6 @@ printf "4. Manpage, terminfo, extension installation \033[1m(system-wide)\033[0m
 printf "5. Uninstall st+ and related files \033[1m(system-wide)\033[0m\n"
 printf "6. Reset st+ configuration\n"
 printf "7. Display st+ manpage\n"
-printf "8. Exit configurator\n\n"
 read -rp "Enter your choice: " choice
 case $choice in
 	1) _setup_colors ;;

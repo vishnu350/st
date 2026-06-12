@@ -27,23 +27,23 @@ index 2cd740a..ac550dd 100644
 -	"cyan",
 -	"white",
 +static char *colorname[] = {
-+	/* solarized dark */
-+	"#073642",  /*  0: black    */
-+	"#dc322f",  /*  1: red      */
-+	"#859900",  /*  2: green    */
-+	"#cf9a6b",  /*  3: yellow   */
-+	"#268bd2",  /*  4: blue     */
-+	"#d33682",  /*  5: magenta  */
-+	"#2aa198",  /*  6: cyan     */
-+	"#eee8d5",  /*  7: white    */
-+	"#657b83",  /*  8: brblack  */
-+	"#cb4b16",  /*  9: brred    */
-+	"#859900",  /* 10: brgreen  */
-+	"#cf9a6b",  /* 11: bryellow */
-+	"#6c71c4",  /* 12: brblue   */
-+	"#d33682",  /* 13: brmagenta*/
-+	"#2aa198",  /* 14: brcyan   */
-+	"#fdf6e3",  /* 15: brwhite  */
++	/* nord */
++	"#3b4252",  /*  0: black    */
++	"#bf616a",  /*  1: red      */
++	"#a3be8c",  /*  2: green    */
++	"#ebcb8b",  /*  3: yellow   */
++	"#81a1c1",  /*  4: blue     */
++	"#b48ead",  /*  5: magenta  */
++	"#88c0d0",  /*  6: cyan     */
++	"#e5e9f0",  /*  7: white    */
++	"#4c566a",  /*  8: brblack  */
++	"#bf616a",  /*  9: brred    */
++	"#a3be8c",  /* 10: brgreen  */
++	"#ebcb8b",  /* 11: bryellow */
++	"#81a1c1",  /* 12: brblue   */
++	"#b48ead",  /* 13: brmagenta*/
++	"#8fbcbb",  /* 14: brcyan   */
++	"#eceff4",  /* 15: brwhite  */
  
  	[255] = 0,
  
@@ -52,9 +52,9 @@ index 2cd740a..ac550dd 100644
 -	"#555555",
 -	"gray90", /* default foreground colour */
 -	"black", /* default background colour */
-+	"#002b36",  /* 256: brblack - BG */
-+	"#839496",  /* 257: brblue  - FG */
-+	"#839496",  /* 258: brcyan  - Cursor */
++	"#2e3440",  /* 256: bg     */
++	"#d8dee9",  /* 257: fg     */
++	"#d8dee9",  /* 258: cursor */
  };
  
  
