@@ -29,7 +29,7 @@ fonts=(
 )
 
 # Color scheme names
-scheme_names=("Gogh Color Scheme (browse collection at https://gogh-co.github.io/Gogh)" "Solarized Dark" "Solarized Light" "Monokai Dark" "Dracula" "Nord" "One Dark" "Tomorrow" "Tomorrow Night")
+scheme_names=("Gogh color scheme collection" "Solarized Dark" "Solarized Light" "Monokai Dark" "Dracula" "Nord" "One Dark" "Tomorrow" "Tomorrow Night")
 
 # All color scheme data
 scheme_colors="073642 dc322f 859900 cf9a6b 268bd2 d33682 2aa198 eee8d5 657b83 cb4b16 859900 cf9a6b 6c71c4 d33682 2aa198 fdf6e3 002b36 839496 839496
@@ -41,18 +41,16 @@ eee8d5 dc322f 859900 b58900 268bd2 d33682 2aa198 002b36 657b83 cb4b16 859900 b58
 e0e0e0 c82829 718c00 eab700 4271ae 8959a8 3e999f 4d4d4c 8e908c c82829 718c00 eab700 4271ae 8959a8 3e999f 1d1f21 ffffff 4d4d4c 4d4d4c
 282a2e cc6666 b5bd68 f0c674 81a2be b294bb 8abeb7 c5c8c6 969896 cc6666 b5bd68 f0c674 81a2be b294bb 8abeb7 ffffff 1d1f21 c5c8c6 c5c8c6"
 
-# Function to handle Ctrl+C
-_error_handler() {
-	echo -e "\n ^ Error detected or operation canceled by user (Ctrl+C)"
+# Exit function handler
+_exit_handler() {
 	rm -rf "$TMPDIR"
-	exit 1
+	exit "$1"
 }
 
-# Successful exit function
-_exit_config() {
-	printf "\nConfiguration for st+ completed, please restart it.\n\n"
-	rm -rf "$TMPDIR"
-	exit 0
+# Function (trap) to handle Ctrl+C and other errors
+_error_handler() {
+	echo -e "\n ^ Error detected or operation canceled by user (Ctrl+C)"
+	_exit_handler 1
 }
 
 # Function to update color scheme
@@ -72,7 +70,8 @@ _setup_colors() {
 
 	# If Gogh was selected
 	if [ "$choice" == 1 ]; then
-		echo; read -rp "Key in selected Gogh color scheme (full name): " gogh
+		printf "\nPlease browse the Gogh collection at: https://gogh-co.github.io/Gogh\n"
+		read -rp "Enter the color scheme name (eg. Monokai Soda): " gogh
 		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || _error_handler
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
 		local offset=0
@@ -128,7 +127,7 @@ _setup_fonts() {
 
 	# Download and install font (if dir doesn't exist OR is at least 6 months old)
 	if [[ ! -d "${FONTPREFIX}/${font_name}Nerd-ST" ]] || find "${FONTPREFIX}/${font_name}Nerd-ST" -maxdepth 1 -type d -mtime +180 -print -quit | grep -q .; then
-		wget -q --show-progress -c "$font_url" -O "${font_name}.tar.xz"
+		wget --no-verbose --show-progress --progress=bar "$font_url" -O "${font_name}.tar.xz" || _error_handler
 		printf "\nInstalling %s into %s...\n\n" "$spaced_font_name" "$FONTPREFIX"
 		$SUDOCMD rm -rf "${FONTPREFIX}/${font_name}Nerd-ST"
 		$SUDOCMD mkdir -p "${FONTPREFIX}/${font_name}Nerd-ST"
@@ -146,7 +145,6 @@ _setup_fonts() {
 	fi
 
 	# Update ~/.st.conf
-	st+ -e exit >/dev/null 2>&1
 	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" "$HOME"/.st.conf
 	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" "$HOME"/.st.conf
 	printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
@@ -158,29 +156,31 @@ _setup_fonts() {
 # Function to install st+ extras
 _setup_extras() {
 	# Install Gnome open-terminal extension
-	if [ ! -f "$NAUTILUS_EXT"/open-terminal.py ] && [ -d "$NAUTILUS_EXT" ]; then
+	if [ -d "$NAUTILUS_EXT" ]; then
 		echo "Installing st+ Nautilus open-terminal integration..."
 		$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"
 	fi
 
 	# Install manpage
-	if [ ! -f "$MANPREFIX"/man1/st+.1 ]; then
-		echo "Installing st+ manpages..."
-		$SUDOCMD mkdir -p "$MANPREFIX"/man1
-		$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
-		$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
-	fi
+	echo "Installing st+ manpages..."
+	$SUDOCMD mkdir -p "$MANPREFIX"/man1
+	$SUDOCMD cp st+.1 "$MANPREFIX"/man1/st+.1
+	$SUDOCMD chmod 644 "$MANPREFIX"/man1/st+.1
 
 	# Install terminfo
 	if command -v infocmp >/dev/null 2>&1 && command -v tic >/dev/null 2>&1; then
 		if ! infocmp st-256color > /dev/null 2>&1; then
 			echo "Installing st+ terminfo..."
 			$SUDOCMD tic -sx st.info
+		else
+			echo "st+ terminfo already installed."
 		fi
+	else
+		echo "ERROR: Cant install st+ terminfo due to missing commands - infocmp, tic."
 	fi
 
 	# Pause for any key
-	echo && read -n 1 -rp "Done. Press any key to return or CTRL+C to exit..."
+	echo && read -n 1 -rp "Press any key to return or CTRL+C to exit..."
 }
 
 # Function to uninstall st+ from the system
@@ -200,6 +200,16 @@ _uninstall_st() {
 	test -f /opt/st+/remove && am -R st+
 	echo "All st+ related files have been removed. Please close all open st+ terminal sessions."
 	exit 0
+}
+
+# Function to reset ~/.st.conf
+_reset_st() {
+	printf "\n\033[1mWARNING: This will reset your current st+ configuration !!!\033[0m\n\n"
+	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
+	rm -f "$HOME"/.st.conf
+	st+ -e exit >/dev/null 2>&1
+	# Pause for any key
+	echo && read -n 1 -rp "Done. Press any key to return or CTRL+C to exit..."
 }
 
 #####################################
@@ -252,12 +262,13 @@ cat << 'EOF'
 
 EOF
 printf "1. Color scheme configuration\n"
-printf "2. Font configuration \033[1m(local)\033[0m\n"
-printf "3. Font configuration \033[1m(system-level)\033[0m\n"
-printf "4. Manpage, terminfo, extension installation \033[1m(system-level)\033[0m\n"
-printf "5. Uninstall st+ and related files \033[1m(system-level)\033[0m\n"
-printf "6. Display st+ manpage\n"
-printf "7. Exit configurator\n\n"
+printf "2. Font download and configuration \033[1m(local)\033[0m\n"
+printf "3. Font download and configuration \033[1m(system-wide)\033[0m\n"
+printf "4. Manpage, terminfo, extension installation \033[1m(system-wide)\033[0m\n"
+printf "5. Uninstall st+ and related files \033[1m(system-wide)\033[0m\n"
+printf "6. Reset st+ configuration\n"
+printf "7. Display st+ manpage\n"
+printf "8. Exit configurator\n\n"
 read -rp "Enter your choice: " choice
 case $choice in
 	1) _setup_colors ;;
@@ -265,8 +276,9 @@ case $choice in
 	3) _setup_fonts 0 ;;
 	4) _setup_extras ;;
 	5) _uninstall_st ;;
-	6) man st+ || read -r ;;
-	*) _exit_config ;;
+	6) _reset_st ;;
+	7) man st+ || read -r ;;
+	*) _exit_handler 0 ;;
 esac
 done
 
