@@ -4,17 +4,18 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use and emulating obscure terminals you'll never need.
 
-Simple Terminal+ is a lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux and [nerd-fonts](https://www.nerdfonts.com/).
+Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 If you just want a minimal, beautiful terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
-- Customizable color scheme (default: Solarized Dark) with built in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
-- Minimal configuration file in `~/.st.conf` (eg. changing font settings and colors).
+- Customizable color scheme with built-in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
 - Proper "Open Terminal Here" integration for Nautilus, including "Open in Remote/Local Terminal" for remote connections.
+- Minimal configuration file in `~/.st.conf` to store all settings.
+- Auto-calculate default font size (Shift+Ctrl+PgUp/PgDn to change).
 - Scrollback (Shift+Mouse Scroll or Shift+PgUp/PgDn).
 - Working directory (needed for "Open Terminal Here" integration).
 - Desktop entry (for menu shortcuts).
-- Alpha (transparent backgrounds).
+- Transparent backgrounds (alpha value).
 - Blinking cursor (square box).
 - One clipboard (better cut/paste).
 - Fullscreen support (F11/Alt-Enter).
