@@ -6,7 +6,7 @@ Modern terminal emulators have grown bloated, packing in features you'll never u
 
 Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
-If you just want a minimal, beautiful terminal with essential features, st+ is for you. It's a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
+This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
 - Customizable color scheme with built-in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
 - Proper "Open Terminal Here" integration for Nautilus, including "Open in Remote/Local Terminal" for remote connections.
@@ -22,6 +22,7 @@ If you just want a minimal, beautiful terminal with essential features, st+ is f
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
+If you just want an AppImage of a minimal, lightweight, rock-solid terminal that has all the essential features, then st+ is for you.
 
 # Installation (AppImage)
 
