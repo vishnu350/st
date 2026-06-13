@@ -94,7 +94,7 @@ index 39120b4..c88f736 100644
 +
 +.TP
 +.B $APPDIR/st-config
-+Downloads additional fonts, color schemes and configures st+.
++Menu utility to download fonts, color schemes and configure st+.
 +
 +.TP
 +.B $APPDIR/st-config uninstall
