@@ -90,11 +90,11 @@ index 39120b4..c88f736 100644
 +.B st+
  is a simple terminal emulator.
 +.SH APPIMAGE OPTIONS
-+This section describes AppImage-specific commands and options. Run these commands from within the st+ terminal (requires root).
++This section describes AppImage-specific commands and options. Run these commands from within the st+ terminal (may require root).
 +
 +.TP
 +.B $APPDIR/st-config
-+Downloads additional fonts and configures st+.
++Downloads additional fonts, color schemes and configures st+.
 +
 +.TP
 +.B $APPDIR/st-config uninstall
