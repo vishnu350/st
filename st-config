@@ -30,7 +30,7 @@ fonts=(
 )
 
 # Color scheme names
-scheme_names=("Gogh color scheme collection" "Solarized Dark" "Solarized Light" "Monokai Dark" "Dracula" "Nord" "One Dark" "Tomorrow" "Tomorrow Night")
+scheme_names=("Gogh color scheme collection (online)" "Solarized Dark" "Solarized Light" "Monokai Dark" "Dracula" "Nord" "One Dark" "Tomorrow" "Tomorrow Night")
 
 # All color scheme data
 scheme_colors="073642 dc322f 859900 cf9a6b 268bd2 d33682 2aa198 eee8d5 657b83 cb4b16 859900 cf9a6b 6c71c4 d33682 2aa198 fdf6e3 002b36 839496 839496
@@ -61,7 +61,7 @@ _setup_colors() {
 	for i in "${!scheme_names[@]}"; do
 		echo "$((i + 1)). ${scheme_names[$i]}"
 	done
-	echo && read -rp "Enter the number of the color scheme to use: " choice
+	echo && read -rep "Enter the number of the color scheme to use: " choice
 
 	# Validate choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#scheme_names[@]} ]; then
@@ -70,8 +70,8 @@ _setup_colors() {
 
 	# If Gogh was selected
 	if [ "$choice" == 1 ]; then
-		printf "\nPlease browse the Gogh collection at https://gogh-co.github.io/Gogh\n"
-		read -rp "Enter the color scheme name (eg. Monokai Soda): " gogh
+		printf "\nPlease browse the Gogh collection at \033[1mhttps://gogh-co.github.io/Gogh\033[0m\n\n"
+		read -rep "Enter the color scheme name (eg. Monokai Soda): " gogh
 		wget --no-verbose --show-progress --progress=bar "https://raw.githubusercontent.com/Gogh-Co/Gogh/refs/heads/master/themes/$gogh.yml" || _error_handler
 		scheme_colors=$(grep -o '#[0-9a-fA-F]\{6\}' "$gogh.yml" | sed 's/#//' | tr '\n' ' ' | tr '[:upper:]' '[:lower:]')
 		local offset=0
@@ -95,7 +95,7 @@ _setup_colors() {
 	done
 
 	# Set alpha value
-	read -rp "Enter terminal window opacity value (default 0.92): " alpha
+	read -rep "Enter terminal window opacity value (default 0.92): " alpha
 	if ! awk -v val="$alpha" 'BEGIN { exit !(val > 0 && val < 1.0) }'; then
 		printf "Invalid choice, setting default opacity value.\n"
 		alpha=0.92
@@ -123,7 +123,7 @@ _setup_fonts() {
 	done
 
 	# Select font type
-	echo && read -rp "Enter the number of the font to install: " choice
+	echo && read -rep "Enter the number of the font to install: " choice
 	if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#fonts[@]} ]; then
 		return 1
 	fi
@@ -145,9 +145,9 @@ _setup_fonts() {
 	fi
 
 	# Select font size to use
-	read -rp "Enter the font size to use (set to 0 for default): " font_size
+	read -rep "Enter the font size to use (set to 0 for auto): " font_size
 	if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
-		echo "Invalid size, selecting default font size."
+		echo "Invalid size, selecting auto font size."
 		font_size=0
 	fi
 
@@ -200,7 +200,7 @@ _uninstall_st() {
 	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
 	# Remove fonts
-	read -rp "Remove all st+ installed nerd-fonts? (y/n): " answer
+	read -rep "Remove all st+ installed nerd-fonts? (y/n): " answer
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX0}"/*Nerd-ST
 	[[ "${answer^^}" == "Y" ]] && $SUDOCMD rm -rfv "${FONTPREFIX1}"/*Nerd-ST
 	# Check if st+ is installed via AM and trigger uninstall
@@ -277,7 +277,7 @@ printf "4. Manpage, terminfo, extension installation \033[1m(system-wide)\033[0m
 printf "5. Uninstall st+ and related files \033[1m(system-wide)\033[0m\n"
 printf "6. Reset st+ configuration\n"
 printf "7. Display st+ manpage\n\n"
-read -rp "Enter your choice: " choice
+read -rep "Enter your choice: " choice
 case $choice in
 	1) _setup_colors ;;
 	2) _setup_fonts 1 ;;
