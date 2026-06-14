@@ -147,7 +147,7 @@ _setup_fonts() {
 	# Select font size to use
 	read -rep "Enter the font size to use (set to 0 for auto): " font_size
 	if ! [[ "$font_size" =~ ^[0-9]+$ ]] || [ "$font_size" -lt 1 ] || [ "$font_size" -gt 50 ]; then
-		echo "Invalid size, selecting auto font size."
+		printf "Invalid size, selecting auto font size.\n\n"
 		font_size=0
 	fi
 
@@ -155,6 +155,7 @@ _setup_fonts() {
 	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" "$HOME"/.st.conf
 	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" "$HOME"/.st.conf
 	printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
+	printf "NOTE: Use \033[1mCTRL + SHIFT + PGUP/PGDN\033[0m to temporarily adjust font size or delete ~/.st.conf to restore defaults.\n\n"
 
 	# Pause for any key
 	read -n 1 -rp "Press any key to return or CTRL+C to exit..."
