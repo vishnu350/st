@@ -79,6 +79,8 @@ If this file does not exist or was deleted, it will be regenerated with safe def
 
 Supported configuration values: `font rows cols alpha colorname`
 
+For the nautilus extension to work make sure to install `python3-nautilus`, but remove `nautilus-extension-gnome-terminal` to avoid conflict.
+
 
 # Contribute
 
