@@ -44,7 +44,7 @@ dist: patch
 	mv st*.AppImage.zsync release/st+-$(VERSION)-$(ARCH).AppImage.zsync
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
-install: st
+install: patch st
 	@./st-config install
 
 uninstall:

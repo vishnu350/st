@@ -163,6 +163,9 @@ _setup_fonts() {
 
 # Function to install st+ extras
 _setup_extras() {
+	# Check if we have the files needed
+	[[ -f st.info && -f open-terminal.py && -f st+.1 ]] || return 1;
+
 	# Install Gnome open-terminal extension
 	if [ -d "$NAUTILUS_EXT" ]; then
 		echo "Installing st+ Nautilus open-terminal integration..."
@@ -191,12 +194,13 @@ _setup_extras() {
 	echo && read -n 1 -rp "Press any key to return or CTRL+C to exit..."
 }
 
-# Function to uninstall st+ from the system
+# Function to uninstall st+ from the system (removes both normal and AM versions)
 _uninstall_st() {
 	# AppImage or make uninstall flow
 	printf "\n\033[1mWARNING: This will uninstall st+ from your system !!!\033[0m\n\n"
 	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
 	$SUDOCMD rm -f "$PREFIX"/bin/st+
+	$SUDOCMD rm -f "$PREFIX"/bin/st-config
 	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
 	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
@@ -252,13 +256,18 @@ elif [ "$1" = "install" ]; then
 	$SUDOCMD mkdir -p  "$PREFIX"/bin
 	$SUDOCMD cp -f st+ "$PREFIX"/bin || _error_handler
 	$SUDOCMD chmod 755 "$PREFIX"/bin/st+
+	$SUDOCMD cp -f st-config "$PREFIX"/bin || _error_handler
+	$SUDOCMD chmod 755 "$PREFIX"/bin/st-config
 	$SUDOCMD mkdir -p  "$APPPREFIX"
 	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
-else
-	# AppImage config flow (copy $APPDIR contents to temp dir)
-	[[ -z $APPDIR ]] && echo "ERROR: \$APPDIR variable is missing." && _error_handler
+	_setup_extras
+	_exit_handler 0
+fi
+
+# If running st-config from AppImage (copy $APPDIR contents to temp dir)
+if [ -n "$APPDIR" ]; then
 	mkdir -p "$TMPDIR"
-	cp -rf "$APPDIR"/* "$TMPDIR"/.
+	cp -f "$APPDIR"/st+.1 "$APPDIR"/st.info "$APPDIR"/open-terminal.py "$TMPDIR"/.
 	cd "$TMPDIR" || _error_handler
 fi
 
