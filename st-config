@@ -7,7 +7,7 @@ MANPREFIX="$PREFIX/share/man"
 FONTPREFIX0="$PREFIX/share/fonts"
 FONTPREFIX1="$HOME/.local/share/fonts"
 NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
-TMPDIR="/tmp/st-appdir.$RANDOM"
+TMPDIR="/tmp/st-config-dir.$RANDOM"
 NERDFONT="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
 
 # Font list (format: "Name URL")
@@ -264,12 +264,12 @@ elif [ "$1" = "install" ]; then
 	_exit_handler 0
 fi
 
-# If running st-config from AppImage (copy $APPDIR contents to temp dir)
-if [ -n "$APPDIR" ]; then
-	mkdir -p "$TMPDIR"
-	cp -f "$APPDIR"/st+.1 "$APPDIR"/st.info "$APPDIR"/open-terminal.py "$TMPDIR"/.
-	cd "$TMPDIR" || _error_handler
-fi
+# Run from a temp dir
+mkdir -p "$TMPDIR"
+cd "$TMPDIR" || _error_handler
+
+# If running st-config from AppImage, copy $APPDIR contents
+[ -n "$APPDIR" ] && cp -f "$APPDIR"/st+.1 "$APPDIR"/st.info "$APPDIR"/open-terminal.py "$TMPDIR"/.
 
 # Start main menu
 HASH0=$(md5sum "$HOME"/.st.conf 2>/dev/null)
