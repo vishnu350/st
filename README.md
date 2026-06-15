@@ -32,7 +32,7 @@ The recommended AppImage installation method is through Ivan's [AM/Appman](https
 
 Or just download it from the [release section](https://github.com/vishnu350/st/releases), rename it to **st+** and place it in your system $PATH.
 
-Next, run the st-config script from within the st+ terminal (needs root):
+To set color schemes or download more fonts, run the st-config tool from within the st+ terminal:
 
     $APPDIR/st-config
 
@@ -41,12 +41,12 @@ This utility will allow you to change the color scheme, download/configure a ner
 Notes on AppImage install flow:
 - [AM/Appman](https://github.com/ivan-hc/AM) supports auto-updates with checksum integrity verification.
 - AppImages will be larger in size, but there will be virtually zero difference in performance.
-- To remove st+ from your system, just run the st-config script with the uninstall switch: `$APPDIR/st-config uninstall`
+- To remove st+ from your system: `$APPDIR/st-config uninstall`
 
 
 # Installation (Manual Build)
 
-You will need the following packages:
+You will need the following packages (Debian example below):
 
     sudo apt install build-essential libxft-dev pkg-config wget python3-nautilus
 
@@ -56,9 +56,12 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 
 To compile and install st+ (needs root):
 
-    git clone https://github.com/vishnu350/st
-    cd st && make patch
+    git clone https://github.com/vishnu350/st && cd st
     make install
+
+To set color schemes or download more fonts, run the st-config tool:
+
+    st-config
 
 **Only for devs**: To build static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
@@ -67,8 +70,7 @@ To compile and install st+ (needs root):
 Notes on manual install flow:
 - No auto-updates.
 - Compiled binary size will be tiny (~100KB) in size.
-- To download/configure more fonts, just rerun the install flow: `make install`
-- To remove st+ from your system, just run the uninstall flow: `make uninstall`
+- To remove st+ from your system: `st-config uninstall` or `make uninstall`
 
 
 # Configuration
