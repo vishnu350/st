@@ -6,6 +6,7 @@ APPPREFIX="$PREFIX/share/applications"
 MANPREFIX="$PREFIX/share/man"
 FONTPREFIX0="$PREFIX/share/fonts"
 FONTPREFIX1="$HOME/.local/share/fonts"
+ICONPREFIX="/usr/share/pixmaps"
 NAUTILUS_EXT="/usr/share/nautilus-python/extensions"
 TMPDIR="/tmp/st-config-dir.$RANDOM"
 NERDFONT="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
@@ -169,7 +170,7 @@ _setup_extras() {
 	# Install Gnome open-terminal extension
 	if [ -d "$NAUTILUS_EXT" ]; then
 		echo "Installing st+ Nautilus open-terminal integration..."
-		$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"
+		$SUDOCMD cp -f open-terminal.py "$NAUTILUS_EXT"/
 	fi
 
 	# Install manpage
@@ -202,6 +203,7 @@ _uninstall_st() {
 	$SUDOCMD rm -f "$PREFIX"/bin/st+
 	$SUDOCMD rm -f "$PREFIX"/bin/st-config
 	$SUDOCMD rm -f "$APPPREFIX"/st+.desktop
+	$SUDOCMD rm -f "$ICONPREFIX"/st+.svg
 	$SUDOCMD rm -f "$MANPREFIX"/man1/st+.1
 	$SUDOCMD rm -f "$NAUTILUS_EXT"/open-terminal.py
 	# Remove fonts
@@ -254,12 +256,13 @@ elif [ "$1" = "install" ]; then
 	# make install flow
 	[[ -n $APPDIR ]] && echo "ERROR: Incorrect option selected from within AppImage." && _error_handler
 	$SUDOCMD mkdir -p  "$PREFIX"/bin
-	$SUDOCMD cp -f st+ "$PREFIX"/bin || _error_handler
+	$SUDOCMD cp -f st+ "$PREFIX"/bin/ || _error_handler
 	$SUDOCMD chmod 755 "$PREFIX"/bin/st+
-	$SUDOCMD cp -f st-config "$PREFIX"/bin || _error_handler
+	$SUDOCMD cp -f st-config "$PREFIX"/bin/ || _error_handler
 	$SUDOCMD chmod 755 "$PREFIX"/bin/st-config
 	$SUDOCMD mkdir -p  "$APPPREFIX"
-	$SUDOCMD cp -f st+.desktop "$APPPREFIX"
+	$SUDOCMD cp -f st+.desktop "$APPPREFIX"/
+	$SUDOCMD cp -f st+.svg "$ICONPREFIX"/
 	_setup_extras
 	_exit_handler 0
 fi

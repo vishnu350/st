@@ -34,8 +34,6 @@ dist: patch
 		st-$(VERSION)
 	tar -cf - st-$(VERSION) | gzip > st+-$(VERSION).tar.gz
 	rm -rf st-$(VERSION)
-	# Replace icon to avoid conflict
-	sed -i 's/Icon=.*/Icon=st+/' st+.desktop
 	make st && mkdir -p release
 	echo "Check GLIBC versions:"; objdump -T st+ | grep GLIBC | sort
 	zip release/st+-$(VERSION)-$(ARCH)-static.zip st+
@@ -45,6 +43,9 @@ dist: patch
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: patch st
+ifdef STDICON
+	sed -i 's/Icon=.*/Icon=utilities-terminal/' st+.desktop
+endif
 	@./st-config install
 
 uninstall:
