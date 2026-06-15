@@ -86,12 +86,12 @@ _setup_colors() {
 
 	# Update primary 16 colors (indices 0-15)
 	for i in {0..15}; do
-		sed -i "s/^colorname\[$i\]=.*/colorname\[$i\]=\"\#${colors[$((i + offset))]}\"/" "$HOME"/.st.conf
+		sed -i "s/^colorname\[$i\]=.*/colorname\[$i\]=\"\#${colors[$((i + offset))]}\"/" "$HOME"/.st.conf || _error_handler
 	done
 
 	# Update additional colors (indices 256-259)
 	for i in {0..2}; do
-		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" "$HOME"/.st.conf
+		sed -i "s/^colorname\[$((i + 256))\]=.*/colorname\[$((i + 256))\]=\"\#${colors[$((i + offset + 16))]}\"/" "$HOME"/.st.conf || _error_handler
 	done
 
 	# Set alpha value
@@ -100,7 +100,7 @@ _setup_colors() {
 		printf "Invalid choice, setting default opacity value.\n"
 		alpha=0.92
 	fi
-	sed -i "s/^alpha=\"[^:]*\"/alpha=\"${alpha}\"/" "$HOME"/.st.conf
+	sed -i "s/^alpha=\"[^:]*\"/alpha=\"${alpha}\"/" "$HOME"/.st.conf || _error_handler
 
 	# Pause for any key
 	echo && read -n 1 -rp "Press any key to return or CTRL+C to exit..."
@@ -152,10 +152,10 @@ _setup_fonts() {
 	fi
 
 	# Update ~/.st.conf
-	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" "$HOME"/.st.conf
-	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" "$HOME"/.st.conf
+	sed -i "s/font=\"[^:]*:/font=\"${spaced_font_name}:/" "$HOME"/.st.conf || _error_handler
+	sed -i "s/pixelsize=[^:]*:/pixelsize=${font_size}:/" "$HOME"/.st.conf || _error_handler
 	printf "The st+ config file (~/.st.conf) has been updated to use font:\n\t ◆ \033[1m%s (size %s)\033[0m\n\n" "$spaced_font_name" "$font_size"
-	printf "NOTE: Use \033[1mCTRL + SHIFT + PGUP/PGDN\033[0m to temporarily adjust font size or delete ~/.st.conf to restore defaults.\n\n"
+	printf "NOTE: Use \033[1mCTRL + SHIFT + PGUP/PGDN\033[0m to temporarily adjust font size.\n      Or just delete ~/.st.conf to restore defaults.\n\n"
 
 	# Pause for any key
 	read -n 1 -rp "Press any key to return or CTRL+C to exit..."
@@ -215,7 +215,10 @@ _reset_st() {
 	printf "\n\033[1mWARNING: This will reset your current st+ configuration !!!\033[0m\n\n"
 	read -n 1 -rp "Press any key to continue or CTRL+C to cancel..."
 	rm -f "$HOME"/.st.conf
-	st+ -e exit >/dev/null 2>&1
+	# Run st+ as a child process in bg, wait for it to finish generating .st.conf and then destroy it
+	st+ >/dev/null 2>&1 &
+	timeout 5 bash -c 'while [ ! -f "$HOME"/.st.conf ] || [ $(wc -l < "$HOME"/.st.conf) -ne 28 ]; do :; done'
+	kill $! 2>/dev/null
 	# Pause for any key
 	echo && read -n 1 -rp "Done. Press any key to return or CTRL+C to exit..."
 }
@@ -260,7 +263,7 @@ else
 fi
 
 # Start main menu
-HASH0=$(md5sum "$HOME"/.st.conf)
+HASH0=$(md5sum "$HOME"/.st.conf 2>/dev/null)
 while true; do
 clear
 cat << 'EOF'
@@ -270,11 +273,11 @@ cat << 'EOF'
 ╚═══════════════════════════════════════════════════════╝
 
 EOF
-[ ! "$HASH0" = "$(md5sum "$HOME"/.st.conf)" ] && printf "  ◆  Please restart st+ for config changes to apply\n\n"
+[ ! "$HASH0" = "$(md5sum "$HOME"/.st.conf 2>/dev/null)" ] && printf "  ◆  Please restart st+ for config changes to apply\n\n"
 printf "1. Color scheme configuration\n"
 printf "2. Font download and configuration \033[1m(local)\033[0m\n"
 printf "3. Font download and configuration \033[1m(system-wide)\033[0m\n"
-printf "4. Manpage, terminfo, extension installation \033[1m(system-wide)\033[0m\n"
+printf "4. Install manpage, terminfo, and extension \033[1m(system-wide)\033[0m\n"
 printf "5. Uninstall st+ and related files \033[1m(system-wide)\033[0m\n"
 printf "6. Reset st+ configuration\n"
 printf "7. Display st+ manpage\n\n"
