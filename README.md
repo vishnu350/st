@@ -57,10 +57,10 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 To compile and install st+ (needs root, flags can be combined):
 
     git clone https://github.com/vishnu350/st && cd st
-    make install                                   ## Standard install
-    make install STDICON=1                         ## Desktop shortcut will use system icon for terminal
-    make install CFLAGS="-O3 -march=native"        ## Optimize for highest performance
-    make install CFLAGS="-Os -march=native"        ## Optimize for smallest size
+    make install                                      ## Standard install
+    make install STDICON=1                            ## Desktop shortcut will use system icon for terminal
+    make install CFLAGS="-O3 -march=native -flto"     ## Optimize for highest performance
+    make install CFLAGS="-Os -march=native -flto"     ## Optimize for smallest size
 
 To set color schemes or download more fonts, run the st-config tool:
 
