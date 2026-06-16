@@ -43,7 +43,7 @@ dist: patch
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
 install: patch st
-ifdef STDICON
+ifdef SYSICON
 	sed -i 's/Icon=.*/Icon=utilities-terminal/' st+.desktop
 endif
 	@./st-config install
