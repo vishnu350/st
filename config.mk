@@ -1,5 +1,5 @@
 # st version
-VERSION = 0.9.3-23
+VERSION = 0.9.3-24
 ARCH = $(shell uname -m)
 STATIC ?= 0
 
