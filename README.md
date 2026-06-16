@@ -68,7 +68,7 @@ To set color schemes or download more fonts, run the st-config tool:
 
 **Only for release**: To build AppImage and static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
-    make dist STATIC=1
+    make dist STATIC=1 CFLAGS="-O3 -flto"
 
 Notes on manual install flow:
 - No auto-updates.
