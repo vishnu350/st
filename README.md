@@ -4,7 +4,7 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use and emulating obscure terminals you'll never need.
 
-Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
+Simple Terminal+ is a beautiful yet lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
@@ -54,22 +54,25 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 
     sudo apt remove nautilus-extension-gnome-terminal
 
-To compile and install st+ (needs root):
+To compile and install st+ (needs root, flags can be combined):
 
     git clone https://github.com/vishnu350/st && cd st
-    make install
+    make install                                   ## Standard install
+    make install STDICON=1                         ## Desktop shortcut will use system icon for terminal
+    make install CFLAGS="-O3 -march=native"        ## Optimize for highest performance
+    make install CFLAGS="-Os -march=native"        ## Optimize for smallest size
 
 To set color schemes or download more fonts, run the st-config tool:
 
     st-config
 
-**Only for devs**: To build static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
+**Only for release**: To build AppImage and static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
     make dist STATIC=1
 
 Notes on manual install flow:
 - No auto-updates.
-- Compiled binary size will be tiny (~100KB) in size.
+- Compiled binary size will be tiny (~90KB) in size.
 - To remove st+ from your system: `st-config uninstall` or `make uninstall`
 
 
