@@ -4,7 +4,7 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use and emulating obscure terminals you'll never need.
 
-Simple Terminal+ is a beautiful yet lightweight terminal (~90KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
+Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
@@ -22,7 +22,18 @@ This is a fork of [st](https://st.suckless.org) that bundles a curated set of pa
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
-If you just want an AppImage of a minimal, lightweight, rock-solid terminal that has all the essential features, then st+ is for you.
+If you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that has all the essential features, then st+ is for you.
+
+
+# Benchmarking
+
+Performance benchmarking on a decent machine:
+| Terminal | Avg Time | Speed | Benchmark Command |
+|:-----|------|------------|:---------------------|
+| **ST+** | **0.030s** | **8.3x** | `time st+ -e bash exit` |
+| GNOME Terminal | 0.250s | 1.0x | `time gnome-terminal -- bash exit` |
+| XTERM | 0.070s | 3.6x | `time xterm -e bash exit` |
+
 
 # Installation (AppImage)
 
@@ -60,7 +71,7 @@ To compile and install st+ (needs root, flags can be combined):
     make install                                      ## Standard install
     make install SYSICON=1                            ## Desktop shortcut will use system icon
     make install CFLAGS="-O3 -march=native -flto"     ## Optimize for highest performance
-    make install CFLAGS="-Os -march=native -flto"     ## Optimize for smallest size
+    make install CFLAGS="-Os -march=native -flto"     ## Optimize for size (~85KB)
 
 To set color schemes or download more fonts, run the st-config tool:
 
@@ -72,7 +83,7 @@ To set color schemes or download more fonts, run the st-config tool:
 
 Notes on manual install flow:
 - No auto-updates.
-- Compiled binary size will be tiny (~90KB) in size.
+- Compiled binary size will be tiny (~100KB) in size.
 - To remove st+ from your system: `st-config uninstall` or `make uninstall`
 
 
