@@ -30,9 +30,9 @@ If you just want an AppImage of a fast, minimal, lightweight, rock-solid termina
 Performance benchmarking on a decent machine:
 | Terminal | Avg Time | Speed | Benchmark Command |
 |:-----|------|------------|:---------------------|
-| **ST+** | **0.030s** | **8.3x** | `time st+ -e bash exit` |
-| GNOME Terminal | 0.250s | 1.0x | `time gnome-terminal -- bash exit` |
-| XTERM | 0.070s | 3.6x | `time xterm -e bash exit` |
+| **ST+** | **0.022s** | **8.3×** | `time st+ -e bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
+| GNOME Terminal | 0.182s | 1.0× | `time gnome-terminal -- bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
+| XTERM | 0.033s | 5.5× | `time xterm -e bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
 
 
 # Installation (AppImage)
