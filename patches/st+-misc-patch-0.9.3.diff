@@ -169,7 +169,7 @@ index 39120b4..c88f736 100644
  .I iofile.
  .TP
  .B Shift-Print Screen
-@@ -160,9 +170,13 @@ Copy the selected text to the clipboard selection.
+@@ -160,9 +170,17 @@ Copy the selected text to the clipboard selection.
  .B Ctrl-Shift-v
  Paste from the clipboard selection.
  .SH CUSTOMIZATION
@@ -177,12 +177,16 @@ index 39120b4..c88f736 100644
 -can be customized by creating a custom config.h and (re)compiling the source
 -code. This keeps it fast, secure and simple.
 +.B st+
-+can be customized by editing the
++can be customized by using the
++.B st-config
++utility or by editing the
 +.B ~/.st.conf
-+configuration file. Supported configuration values:
-+.B font rows cols alpha colorname
++configuration file.
 +
 +If this file does not exist or was deleted, it will be regenerated with safe defaults.
++
++Supported configuration values:
++.B font rows cols alpha colorname
  .SH AUTHORS
  See the LICENSE file for the authors.
  .SH LICENSE

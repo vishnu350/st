@@ -42,10 +42,12 @@ dist: patch
 	mv st*.AppImage.zsync release/st+-$(VERSION)-$(ARCH).AppImage.zsync
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
-install: patch st
+install: patch
 ifdef SYSICON
 	sed -i 's/Icon=.*/Icon=utilities-terminal/' st+.desktop
 endif
+	sed -i 's/$$APPDIR\///g' x.c
+	make st
 	@./st-config install
 
 uninstall:
