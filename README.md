@@ -2,11 +2,12 @@
 
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
 
-Modern terminal emulators have grown bloated, packing in features you'll never use and emulating obscure terminals you'll never need.
+Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
 
 Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
+- **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim).
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
 - Customizable color scheme with built-in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
 - Proper "Open Terminal Here" integration for Nautilus, including "Open in Remote/Local Terminal" for remote connections.
@@ -22,7 +23,7 @@ This is a fork of [st](https://st.suckless.org) that bundles a curated set of pa
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
-If you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that has all the essential features, then st+ is for you.
+If you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that supports SIXEL and other essential features, then st+ is for you.
 
 
 # Benchmarking
@@ -59,7 +60,7 @@ Notes on AppImage install flow:
 
 You will need the following packages (Debian example below):
 
-    sudo apt install build-essential libxft-dev libimlib2 pkg-config wget python3-nautilus
+    sudo apt install build-essential libxft-dev libimlib2-dev pkg-config wget python3-nautilus
 
 To avoid conflicts, the default nautilus open terminal extension should be removed if installed:
 
@@ -100,8 +101,8 @@ For the nautilus extension to work make sure to install `python3-nautilus`, but 
 
 # Contribute
 
-If you like this work, please consider to:
-- Please ⭐️ this repository if this project helped you.
+Like this project?
+- Please ⭐️ this repository or follow the devs if this project helped you.
 - Buy the suckless.org team a cup of [coffee](https://suckless.org/donations/).
 
 Credits to the following folk:
