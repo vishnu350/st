@@ -58,7 +58,7 @@ patch: clean
 	git checkout .
 	rm -rf patches
 	mv patches.bak patches
-	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 < patches/$(var);)
+	$(foreach var, $(shell ls patches), printf "\nSource: $(var)\n"; patch -p1 --verbose < patches/$(var);)
 	sed "s/VERSION/$(VERSION)/g" < st.1 > st+.1
 
 .PHONY: all clean dist install uninstall

@@ -1,0 +1,3203 @@
+diff --git a/Makefile b/Makefile
+index 67ff6b4..068790a 100644
+--- a/Makefile
++++ b/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include config.mk
+ 
+-SRC = st.c x.c
++SRC = st.c x.c sixel.c sixel_hls.c
+ OBJ = $(SRC:.c=.o)
+ 
+ all: st
+@@ -25,7 +25,7 @@ st: $(OBJ)
+ 	strip st+
+ 
+ clean:
+-	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
++	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h sixel*
+ 
+ dist: patch
+ 	mkdir -p st-$(VERSION)
+diff --git a/config.def.h b/config.def.h
+index 2cd740a..715c83a 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -23,7 +23,10 @@ char *scroll = NULL;
+ char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
+ 
+ /* identification sequence returned in DA and DECID */
+-char *vtiden = "\033[?6c";
++char *vtiden = "\033[?62;4c"; /* VT200 family (62) with sixel (4) */
++
++/* sixel rgb byte order: LSBFirst or MSBFirst */
++int const sixelbyteorder = LSBFirst;
+ 
+ /* Kerning / character bounding-box multipliers */
+ static float cwscale = 1.0;
+@@ -93,6 +96,9 @@ char *termname = "st-256color";
+  */
+ unsigned int tabspaces = 8;
+ 
++/* bg opacity */
++float alpha = 0.92;
++
+ /* Terminal colors (16 first used in escape sequence) */
+ static const char *colorname[] = {
+ 	/* 8 normal colors */
+@@ -201,6 +207,10 @@ static Shortcut shortcuts[] = {
+ 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
+ 	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
+ 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
++	{ XK_NO_MOD,            XK_F11,         fullscreen,     {.i =  0} },
++	{ MODKEY,               XK_Return,      fullscreen,     {.i =  0} },
++	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
++	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
+ };
+ 
+ /*
+diff --git a/config.mk b/config.mk
+index 281e811..911b8c9 100644
+--- a/config.mk
++++ b/config.mk
+@@ -12,12 +12,12 @@ PKG_CONFIG = pkg-config
+ INCS = -I$(X11INC) `$(PKG_CONFIG) --cflags x11 xft fontconfig freetype2`
+ ifeq ($(STATIC),0)
+ # Default dynamically linked library
+-LIBS = -lm -lutil `$(PKG_CONFIG) --libs x11 xft fontconfig freetype2`
++LIBS = -lm -lutil `$(PKG_CONFIG) --libs x11 xft fontconfig freetype2 imlib2`
+ else
+ # Customized library order for static linking (all except system libs), use st-build container
+ LIBS = -static-libgcc \
+        -Wl,-Bstatic -lpng16 -lexpat -lz \
+-       -Wl,-Bdynamic -lm -lutil -lfreetype -lfontconfig -lX11 -lXft
++       -Wl,-Bdynamic -lm -lutil -lfreetype -lfontconfig -lX11 -lXft -lImlib2
+ endif
+ 
+ # flags
+diff --git a/sixel.c b/sixel.c
+new file mode 100644
+index 0000000..fef2442
+--- /dev/null
++++ b/sixel.c
+@@ -0,0 +1,690 @@
++// sixel.c (part of mintty)
++// originally written by kmiya@cluti (https://github.com/saitoha/sixel/blob/master/fromsixel.c)
++// Licensed under the terms of the GNU General Public License v3 or later.
++
++#include <stdlib.h>
++#include <string.h>  /* memcpy */
++
++#include "st.h"
++#include "win.h"
++#include "sixel.h"
++#include "sixel_hls.h"
++
++#define SIXEL_RGB(r, g, b) ((255 << 24) + ((r) << 16) + ((g) << 8) +  (b))
++#define SIXEL_PALVAL(n,a,m) (((n) * (a) + ((m) / 2)) / (m))
++#define SIXEL_XRGB(r,g,b) SIXEL_RGB(SIXEL_PALVAL(r, 255, 100), SIXEL_PALVAL(g, 255, 100), SIXEL_PALVAL(b, 255, 100))
++
++static sixel_color_t const sixel_default_color_table[] = {
++	SIXEL_XRGB( 0,  0,  0),  /*  0 Black    */
++	SIXEL_XRGB(20, 20, 80),  /*  1 Blue     */
++	SIXEL_XRGB(80, 13, 13),  /*  2 Red      */
++	SIXEL_XRGB(20, 80, 20),  /*  3 Green    */
++	SIXEL_XRGB(80, 20, 80),  /*  4 Magenta  */
++	SIXEL_XRGB(20, 80, 80),  /*  5 Cyan     */
++	SIXEL_XRGB(80, 80, 20),  /*  6 Yellow   */
++	SIXEL_XRGB(53, 53, 53),  /*  7 Gray 50% */
++	SIXEL_XRGB(26, 26, 26),  /*  8 Gray 25% */
++	SIXEL_XRGB(33, 33, 60),  /*  9 Blue*    */
++	SIXEL_XRGB(60, 26, 26),  /* 10 Red*     */
++	SIXEL_XRGB(33, 60, 33),  /* 11 Green*   */
++	SIXEL_XRGB(60, 33, 60),  /* 12 Magenta* */
++	SIXEL_XRGB(33, 60, 60),  /* 13 Cyan*    */
++	SIXEL_XRGB(60, 60, 33),  /* 14 Yellow*  */
++	SIXEL_XRGB(80, 80, 80),  /* 15 Gray 75% */
++};
++
++void
++scroll_images(int n) {
++	ImageList *im, *next;
++	int top = 0;
++
++	for (im = term.images; im; im = next) {
++		next = im->next;
++		im->y += n;
++
++		/* check if the current sixel has exceeded the maximum
++		 * draw distance, and should therefore be deleted */
++		if (im->y < top) {
++			//fprintf(stderr, "im@0x%08x exceeded maximum distance\n");
++			delete_image(im);
++		}
++	}
++}
++
++void
++delete_image(ImageList *im)
++{
++	if (im->prev)
++		im->prev->next = im->next;
++	else
++		term.images = im->next;
++	if (im->next)
++		im->next->prev = im->prev;
++	if (im->pixmap)
++		XFreePixmap(xw.dpy, (Drawable)im->pixmap);
++	if (im->clipmask)
++		XFreePixmap(xw.dpy, (Drawable)im->clipmask);
++	free(im->pixels);
++	free(im);
++}
++
++static int
++set_default_color(sixel_image_t *image)
++{
++	int i;
++	int n;
++	int r;
++	int g;
++	int b;
++
++	/* palette initialization */
++	for (n = 1; n < 17; n++) {
++		image->palette[n] = sixel_default_color_table[n - 1];
++	}
++
++	/* colors 17-232 are a 6x6x6 color cube */
++	for (r = 0; r < 6; r++) {
++		for (g = 0; g < 6; g++) {
++			for (b = 0; b < 6; b++) {
++				image->palette[n++] = SIXEL_RGB(r * 51, g * 51, b * 51);
++			}
++		}
++	}
++
++	/* colors 233-256 are a grayscale ramp, intentionally leaving out */
++	for (i = 0; i < 24; i++) {
++		image->palette[n++] = SIXEL_RGB(i * 11, i * 11, i * 11);
++	}
++
++	for (; n < DECSIXEL_PALETTE_MAX; n++) {
++		image->palette[n] = SIXEL_RGB(255, 255, 255);
++	}
++
++	return (0);
++}
++
++static int
++sixel_image_init(
++    sixel_image_t    *image,
++    int              width,
++    int              height,
++    int              fgcolor,
++    int              bgcolor,
++    int              use_private_register)
++{
++	int status = (-1);
++	size_t size;
++
++	size = (size_t)(width * height) * sizeof(sixel_color_no_t);
++	image->width = width;
++	image->height = height;
++	image->data = (sixel_color_no_t *)malloc(size);
++	image->ncolors = 2;
++	image->use_private_register = use_private_register;
++
++	if (image->data == NULL) {
++		status = (-1);
++		goto end;
++	}
++	memset(image->data, 0, size);
++
++	image->palette[0] = bgcolor;
++
++	if (image->use_private_register)
++		image->palette[1] = fgcolor;
++
++	image->palette_modified = 0;
++
++	status = (0);
++
++end:
++	return status;
++}
++
++static int
++image_buffer_resize(
++    sixel_image_t   *image,
++    int              width,
++    int              height)
++{
++	int status = (-1);
++	size_t size;
++	sixel_color_no_t *alt_buffer;
++	int n;
++	int min_height;
++
++	size = (size_t)(width * height) * sizeof(sixel_color_no_t);
++	alt_buffer = (sixel_color_no_t *)malloc(size);
++	if (alt_buffer == NULL) {
++		/* free source image */
++		free(image->data);
++		image->data = NULL;
++		status = (-1);
++		goto end;
++	}
++
++	min_height = height > image->height ? image->height: height;
++	if (width > image->width) {  /* if width is extended */
++		for (n = 0; n < min_height; ++n) {
++			/* copy from source image */
++			memcpy(alt_buffer + width * n,
++			       image->data + image->width * n,
++			       (size_t)image->width * sizeof(sixel_color_no_t));
++			/* fill extended area with background color */
++			memset(alt_buffer + width * n + image->width,
++			       0,
++			       (size_t)(width - image->width) * sizeof(sixel_color_no_t));
++		}
++	} else {
++		for (n = 0; n < min_height; ++n) {
++			/* copy from source image */
++			memcpy(alt_buffer + width * n,
++			       image->data + image->width * n,
++			       (size_t)width * sizeof(sixel_color_no_t));
++		}
++	}
++
++	if (height > image->height) {  /* if height is extended */
++		/* fill extended area with background color */
++		memset(alt_buffer + width * image->height,
++		       0,
++		       (size_t)(width * (height - image->height)) * sizeof(sixel_color_no_t));
++	}
++
++	/* free source image */
++	free(image->data);
++
++	image->data = alt_buffer;
++	image->width = width;
++	image->height = height;
++
++	status = (0);
++
++end:
++	return status;
++}
++
++static void
++sixel_image_deinit(sixel_image_t *image)
++{
++	if (image->data)
++		free(image->data);
++	image->data = NULL;
++}
++
++int
++sixel_parser_init(sixel_state_t *st,
++                  int transparent,
++                  sixel_color_t fgcolor, sixel_color_t bgcolor,
++                  unsigned char use_private_register,
++                  int cell_width, int cell_height)
++{
++	int status = (-1);
++
++	st->state = PS_DECSIXEL;
++	st->pos_x = 0;
++	st->pos_y = 0;
++	st->max_x = 0;
++	st->max_y = 0;
++	st->attributed_pan = 2;
++	st->attributed_pad = 1;
++	st->attributed_ph = 0;
++	st->attributed_pv = 0;
++	st->transparent = transparent;
++	st->repeat_count = 1;
++	st->color_index = 16;
++	st->grid_width = cell_width;
++	st->grid_height = cell_height;
++	st->nparams = 0;
++	st->param = 0;
++
++	/* buffer initialization */
++	status = sixel_image_init(&st->image, 1, 1, fgcolor, transparent ? 0 : bgcolor, use_private_register);
++
++	return status;
++}
++
++int
++sixel_parser_set_default_color(sixel_state_t *st)
++{
++	return set_default_color(&st->image);
++}
++
++int
++sixel_parser_finalize(sixel_state_t *st, ImageList **newimages, int cx, int cy, int cw, int ch)
++{
++	sixel_image_t *image = &st->image;
++	int x, y;
++	sixel_color_no_t *src;
++	sixel_color_t *dst, color;
++	int w, h;
++	int i, j, cols, numimages;
++	char trans;
++	ImageList *im, *next, *tail;
++
++	if (!image->data)
++		return -1;
++
++	if (++st->max_x < st->attributed_ph)
++		st->max_x = st->attributed_ph;
++
++	if (++st->max_y < st->attributed_pv)
++		st->max_y = st->attributed_pv;
++
++	if (image->use_private_register && image->ncolors > 2 && !image->palette_modified) {
++		if (set_default_color(image) < 0)
++			return -1;
++	}
++
++	w = MIN(st->max_x, image->width);
++	h = MIN(st->max_y, image->height);
++
++	if ((numimages = (h + ch-1) / ch) <= 0)
++		return -1;
++
++	cols = (w + cw-1) / cw;
++
++	*newimages = NULL, tail = NULL;
++	for (y = 0, i = 0; i < numimages; i++) {
++		if ((im = malloc(sizeof(ImageList)))) {
++			if (!tail) {
++				*newimages = tail = im;
++				im->prev = im->next = NULL;
++			} else {
++				tail->next = im;
++				im->prev = tail;
++				im->next = NULL;
++				tail = im;
++			}
++			im->x = cx;
++			im->y = cy + i;
++			im->cols = cols;
++			im->width = w;
++			im->height = MIN(h - ch * i, ch);
++			im->pixels = malloc(im->width * im->height * 4);
++			im->pixmap = NULL;
++			im->clipmask = NULL;
++			im->cw = cw;
++			im->ch = ch;
++		}
++		if (!im || !im->pixels) {
++			for (im = *newimages; im; im = next) {
++				next = im->next;
++				if (im->pixels)
++					free(im->pixels);
++				free(im);
++			}
++			*newimages = NULL;
++			return -1;
++		}
++		dst = (sixel_color_t *)im->pixels;
++		for (trans = 0, j = 0; j < im->height && y < h; j++, y++) {
++			src = st->image.data + image->width * y;
++			for (x = 0; x < w; x++) {
++				color = st->image.palette[*src++];
++				trans |= (color == 0);
++				*dst++ = color;
++			}
++		}
++		im->transparent = (st->transparent && trans);
++	}
++
++	return numimages;
++}
++
++/* convert sixel data into indexed pixel bytes and palette data */
++int
++sixel_parser_parse(sixel_state_t *st, const unsigned char *p, size_t len)
++{
++	int n = 0;
++	int i;
++	int x;
++	int y;
++	int bits;
++	int sx;
++	int sy;
++	int c;
++	int pos;
++	int width;
++	const unsigned char *p0 = p, *p2 = p + len;
++	sixel_image_t *image = &st->image;
++	sixel_color_no_t *data, color_index;
++
++	if (!image->data)
++		st->state = PS_ERROR;
++
++	while (p < p2) {
++		switch (st->state) {
++		case PS_ESC:
++			goto end;
++
++		case PS_DECSIXEL:
++			switch (*p) {
++			case '\x1b':
++				st->state = PS_ESC;
++				break;
++			case '"':
++				st->param = 0;
++				st->nparams = 0;
++				st->state = PS_DECGRA;
++				p++;
++				break;
++			case '!':
++				st->param = 0;
++				st->nparams = 0;
++				st->state = PS_DECGRI;
++				p++;
++				break;
++			case '#':
++				st->param = 0;
++				st->nparams = 0;
++				st->state = PS_DECGCI;
++				p++;
++				break;
++			case '$':
++				/* DECGCR Graphics Carriage Return */
++				st->pos_x = 0;
++				p++;
++				break;
++			case '-':
++				/* DECGNL Graphics Next Line */
++				st->pos_x = 0;
++				if (st->pos_y < DECSIXEL_HEIGHT_MAX - 5 - 6)
++					st->pos_y += 6;
++				else
++					st->pos_y = DECSIXEL_HEIGHT_MAX + 1;
++				p++;
++				break;
++			default:
++				if (*p >= '?' && *p <= '~') {  /* sixel characters */
++					if ((image->width < (st->pos_x + st->repeat_count) || image->height < (st->pos_y + 6))
++					        && image->width < DECSIXEL_WIDTH_MAX && image->height < DECSIXEL_HEIGHT_MAX) {
++						sx = image->width * 2;
++						sy = image->height * 2;
++						while (sx < (st->pos_x + st->repeat_count) || sy < (st->pos_y + 6)) {
++							sx *= 2;
++							sy *= 2;
++						}
++
++						sx = MIN(sx, DECSIXEL_WIDTH_MAX);
++						sy = MIN(sy, DECSIXEL_HEIGHT_MAX);
++
++						if (image_buffer_resize(image, sx, sy) < 0) {
++							perror("sixel_parser_parse() failed");
++							st->state = PS_ERROR;
++							p++;
++							break;
++						}
++					}
++
++					if (st->color_index > image->ncolors)
++						image->ncolors = st->color_index;
++
++					if (st->pos_x + st->repeat_count > image->width)
++						st->repeat_count = image->width - st->pos_x;
++
++					if (st->repeat_count > 0 && st->pos_y + 5 < image->height) {
++						bits = *p - '?';
++						if (bits != 0) {
++							data = image->data + image->width * st->pos_y + st->pos_x;
++							width = image->width;
++							color_index = st->color_index;
++							if (st->repeat_count <= 1) {
++								if (bits & 0x01)
++									*data = color_index, n = 0;
++								data += width;
++								if (bits & 0x02)
++									*data = color_index, n = 1;
++								data += width;
++								if (bits & 0x04)
++									*data = color_index, n = 2;
++								data += width;
++								if (bits & 0x08)
++									*data = color_index, n = 3;
++								data += width;
++								if (bits & 0x10)
++									*data = color_index, n = 4;
++								if (bits & 0x20)
++									data[width] = color_index, n = 5;
++								if (st->max_x < st->pos_x)
++									st->max_x = st->pos_x;
++							} else {
++								/* st->repeat_count > 1 */
++								for (i = 0; bits; bits >>= 1, i++, data += width) {
++									if (bits & 1) {
++										data[0] = color_index;
++										data[1] = color_index;
++										for (x = 2; x < st->repeat_count; x++)
++											data[x] = color_index;
++										n = i;
++									}
++								}
++								if (st->max_x < (st->pos_x + st->repeat_count - 1))
++									st->max_x = st->pos_x + st->repeat_count - 1;
++							}
++							if (st->max_y < (st->pos_y + n))
++								st->max_y = st->pos_y + n;
++						}
++					}
++					if (st->repeat_count > 0)
++						st->pos_x += st->repeat_count;
++					st->repeat_count = 1;
++				}
++				p++;
++				break;
++			}
++			break;
++
++		case PS_DECGRA:
++			/* DECGRA Set Raster Attributes " Pan; Pad; Ph; Pv */
++			switch (*p) {
++			case '\x1b':
++				st->state = PS_ESC;
++				break;
++			case '0':
++			case '1':
++			case '2':
++			case '3':
++			case '4':
++			case '5':
++			case '6':
++			case '7':
++			case '8':
++			case '9':
++				st->param = st->param * 10 + *p - '0';
++				st->param = MIN(st->param, DECSIXEL_PARAMVALUE_MAX);
++				p++;
++				break;
++			case ';':
++				if (st->nparams < DECSIXEL_PARAMS_MAX)
++					st->params[st->nparams++] = st->param;
++				st->param = 0;
++				p++;
++				break;
++			default:
++				if (st->nparams < DECSIXEL_PARAMS_MAX)
++					st->params[st->nparams++] = st->param;
++				if (st->nparams > 0)
++					st->attributed_pad = st->params[0];
++				if (st->nparams > 1)
++					st->attributed_pan = st->params[1];
++				if (st->nparams > 2 && st->params[2] > 0)
++					st->attributed_ph = st->params[2];
++				if (st->nparams > 3 && st->params[3] > 0)
++					st->attributed_pv = st->params[3];
++
++				if (st->attributed_pan <= 0)
++					st->attributed_pan = 1;
++				if (st->attributed_pad <= 0)
++					st->attributed_pad = 1;
++
++				if (image->width < st->attributed_ph ||
++				        image->height < st->attributed_pv) {
++					sx = MAX(image->width, st->attributed_ph);
++					sy = MAX(image->height, st->attributed_pv);
++
++					/* the height of the image buffer must be divisible by 6
++					 * to avoid unnecessary resizing of the image buffer when
++					 * parsing the last sixel line */
++					sy = (sy + 5) / 6 * 6;
++
++					sx = MIN(sx, DECSIXEL_WIDTH_MAX);
++					sy = MIN(sy, DECSIXEL_HEIGHT_MAX);
++
++					if (image_buffer_resize(image, sx, sy) < 0) {
++						perror("sixel_parser_parse() failed");
++						st->state = PS_ERROR;
++						break;
++					}
++				}
++				st->state = PS_DECSIXEL;
++				st->param = 0;
++				st->nparams = 0;
++			}
++			break;
++
++		case PS_DECGRI:
++			/* DECGRI Graphics Repeat Introducer ! Pn Ch */
++			switch (*p) {
++			case '\x1b':
++				st->state = PS_ESC;
++				break;
++			case '0':
++			case '1':
++			case '2':
++			case '3':
++			case '4':
++			case '5':
++			case '6':
++			case '7':
++			case '8':
++			case '9':
++				st->param = st->param * 10 + *p - '0';
++				st->param = MIN(st->param, DECSIXEL_PARAMVALUE_MAX);
++				p++;
++				break;
++			default:
++				st->repeat_count = MAX(st->param, 1);
++				st->state = PS_DECSIXEL;
++				st->param = 0;
++				st->nparams = 0;
++				break;
++			}
++			break;
++
++		case PS_DECGCI:
++			/* DECGCI Graphics Color Introducer # Pc; Pu; Px; Py; Pz */
++			switch (*p) {
++			case '\x1b':
++				st->state = PS_ESC;
++				break;
++			case '0':
++			case '1':
++			case '2':
++			case '3':
++			case '4':
++			case '5':
++			case '6':
++			case '7':
++			case '8':
++			case '9':
++				st->param = st->param * 10 + *p - '0';
++				st->param = MIN(st->param, DECSIXEL_PARAMVALUE_MAX);
++				p++;
++				break;
++			case ';':
++				if (st->nparams < DECSIXEL_PARAMS_MAX)
++					st->params[st->nparams++] = st->param;
++				st->param = 0;
++				p++;
++				break;
++			default:
++				st->state = PS_DECSIXEL;
++				if (st->nparams < DECSIXEL_PARAMS_MAX)
++					st->params[st->nparams++] = st->param;
++				st->param = 0;
++
++				if (st->nparams > 0) {
++					st->color_index = 1 + st->params[0];  /* offset 1(background color) added */
++					if (st->color_index < 0)
++						st->color_index = 0;
++					else if (st->color_index >= DECSIXEL_PALETTE_MAX)
++						st->color_index = DECSIXEL_PALETTE_MAX - 1;
++				}
++
++				if (st->nparams > 4) {
++					st->image.palette_modified = 1;
++					if (st->params[1] == 1) {
++						/* HLS */
++						st->params[2] = MIN(st->params[2], 360);
++						st->params[3] = MIN(st->params[3], 100);
++						st->params[4] = MIN(st->params[4], 100);
++						image->palette[st->color_index]
++						    = hls_to_rgb(st->params[2], st->params[3], st->params[4]);
++					} else if (st->params[1] == 2) {
++						/* RGB */
++						st->params[2] = MIN(st->params[2], 100);
++						st->params[3] = MIN(st->params[3], 100);
++						st->params[4] = MIN(st->params[4], 100);
++						image->palette[st->color_index]
++						    = SIXEL_XRGB(st->params[2], st->params[3], st->params[4]);
++					}
++				}
++				break;
++			}
++			break;
++
++		case PS_ERROR:
++			if (*p == '\x1b') {
++				st->state = PS_ESC;
++				goto end;
++			}
++			p++;
++			break;
++		default:
++			break;
++		}
++	}
++
++end:
++	return p - p0;
++}
++
++void
++sixel_parser_deinit(sixel_state_t *st)
++{
++	if (st)
++		sixel_image_deinit(&st->image);
++}
++
++Pixmap
++sixel_create_clipmask(char *pixels, int width, int height)
++{
++	char c, *clipdata, *dst;
++	int b, i, n, y, w;
++	int msb = (XBitmapBitOrder(xw.dpy) == MSBFirst);
++	sixel_color_t *src = (sixel_color_t *)pixels;
++	Pixmap clipmask;
++
++	clipdata = dst = malloc((width+7)/8 * height);
++	if (!clipdata)
++		return (Pixmap)None;
++
++	for (y = 0; y < height; y++) {
++		for (w = width; w > 0; w -= n) {
++			n = MIN(w, 8);
++			if (msb) {
++				for (b = 0x80, c = 0, i = 0; i < n; i++, b >>= 1)
++					c |= (*src++) ? b : 0;
++			} else {
++				for (b = 0x01, c = 0, i = 0; i < n; i++, b <<= 1)
++					c |= (*src++) ? b : 0;
++			}
++			*dst++ = c;
++		}
++	}
++
++	clipmask = XCreateBitmapFromData(xw.dpy, xw.win, clipdata, width, height);
++	free(clipdata);
++	return clipmask;
++}
+diff --git a/sixel.h b/sixel.h
+new file mode 100644
+index 0000000..7d14f8a
+--- /dev/null
++++ b/sixel.h
+@@ -0,0 +1,63 @@
++#ifndef SIXEL_H
++#define SIXEL_H
++
++#define DECSIXEL_PARAMS_MAX 16
++#define DECSIXEL_PALETTE_MAX 1024
++#define DECSIXEL_PARAMVALUE_MAX 65535
++#define DECSIXEL_WIDTH_MAX 4096
++#define DECSIXEL_HEIGHT_MAX 4096
++
++typedef unsigned short sixel_color_no_t;
++typedef unsigned int sixel_color_t;
++
++typedef struct sixel_image_buffer {
++	sixel_color_no_t *data;
++	int width;
++	int height;
++	sixel_color_t palette[DECSIXEL_PALETTE_MAX];
++	sixel_color_no_t ncolors;
++	int palette_modified;
++	int use_private_register;
++} sixel_image_t;
++
++typedef enum parse_state {
++	PS_ESC        = 1,  /* ESC */
++	PS_DECSIXEL   = 2,  /* DECSIXEL body part ", $, -, ? ... ~ */
++	PS_DECGRA     = 3,  /* DECGRA Set Raster Attributes " Pan; Pad; Ph; Pv */
++	PS_DECGRI     = 4,  /* DECGRI Graphics Repeat Introducer ! Pn Ch */
++	PS_DECGCI     = 5,  /* DECGCI Graphics Color Introducer # Pc; Pu; Px; Py; Pz */
++	PS_ERROR      = 6,
++} parse_state_t;
++
++typedef struct parser_context {
++	parse_state_t state;
++	int pos_x;
++	int pos_y;
++	int max_x;
++	int max_y;
++	int attributed_pan;
++	int attributed_pad;
++	int attributed_ph;
++	int attributed_pv;
++	int transparent;
++	int repeat_count;
++	int color_index;
++	int bgindex;
++	int grid_width;
++	int grid_height;
++	int param;
++	int nparams;
++	int params[DECSIXEL_PARAMS_MAX];
++	sixel_image_t image;
++} sixel_state_t;
++
++void scroll_images(int n);
++void delete_image(ImageList *im);
++int sixel_parser_init(sixel_state_t *st, int transparent, sixel_color_t fgcolor, sixel_color_t bgcolor, unsigned char use_private_register, int cell_width, int cell_height);
++int sixel_parser_parse(sixel_state_t *st, const unsigned char *p, size_t len);
++int sixel_parser_set_default_color(sixel_state_t *st);
++int sixel_parser_finalize(sixel_state_t *st, ImageList **newimages, int cx, int cy, int cw, int ch);
++void sixel_parser_deinit(sixel_state_t *st);
++Pixmap sixel_create_clipmask(char *pixels, int width, int height);
++
++#endif
+diff --git a/sixel_hls.c b/sixel_hls.c
+new file mode 100644
+index 0000000..c88241c
+--- /dev/null
++++ b/sixel_hls.c
+@@ -0,0 +1,115 @@
++// sixel.c (part of mintty)
++// this function is derived from a part of graphics.c
++// in Xterm pl#310 originally written by Ross Combs.
++//
++// Copyright 2013,2014 by Ross Combs
++//
++//                         All Rights Reserved
++//
++// Permission is hereby granted, free of charge, to any person obtaining a
++// copy of this software and associated documentation files (the
++// "Software"), to deal in the Software without restriction, including
++// without limitation the rights to use, copy, modify, merge, publish,
++// distribute, sublicense, and/or sell copies of the Software, and to
++// permit persons to whom the Software is furnished to do so, subject to
++// the following conditions:
++//
++// The above copyright notice and this permission notice shall be included
++// in all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++// IN NO EVENT SHALL THE ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
++// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
++// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
++// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++//
++// Except as contained in this notice, the name(s) of the above copyright
++// holders shall not be used in advertising or otherwise to promote the
++// sale, use or other dealings in this Software without prior written
++// authorization.
++
++#define SIXEL_RGB(r, g, b) ((r) + ((g) << 8) + ((b) << 16) + (255 << 24))
++
++int
++hls_to_rgb(int hue, int lum, int sat)
++{
++  double hs = (hue + 240) % 360;
++  double hv = hs / 360.0;
++  double lv = lum / 100.0;
++  double sv = sat / 100.0;
++  double c, x, m, c2;
++  double r1, g1, b1;
++  int r, g, b;
++  int hpi;
++
++  if (sat == 0) {
++    r = g = b = lum * 255 / 100;
++    return SIXEL_RGB(r, g, b);
++  }
++
++  if ((c2 = ((2.0 * lv) - 1.0)) < 0.0) {
++    c2 = -c2;
++  }
++  c = (1.0 - c2) * sv;
++  hpi = (int) (hv * 6.0);
++  x = (hpi & 1) ? c : 0.0;
++  m = lv - 0.5 * c;
++
++  switch (hpi) {
++  case 0:
++    r1 = c;
++    g1 = x;
++    b1 = 0.0;
++    break;
++  case 1:
++    r1 = x;
++    g1 = c;
++    b1 = 0.0;
++    break;
++  case 2:
++    r1 = 0.0;
++    g1 = c;
++    b1 = x;
++    break;
++  case 3:
++    r1 = 0.0;
++    g1 = x;
++    b1 = c;
++    break;
++  case 4:
++    r1 = x;
++    g1 = 0.0;
++    b1 = c;
++    break;
++  case 5:
++    r1 = c;
++    g1 = 0.0;
++    b1 = x;
++    break;
++  default:
++    return SIXEL_RGB(255, 255, 255);
++  }
++
++  r = (int) ((r1 + m) * 100.0 + 0.5);
++  g = (int) ((g1 + m) * 100.0 + 0.5);
++  b = (int) ((b1 + m) * 100.0 + 0.5);
++
++  if (r < 0) {
++    r = 0;
++  } else if (r > 100) {
++    r = 100;
++  }
++  if (g < 0) {
++    g = 0;
++  } else if (g > 100) {
++    g = 100;
++  }
++  if (b < 0) {
++    b = 0;
++  } else if (b > 100) {
++    b = 100;
++  }
++  return SIXEL_RGB(r * 255 / 100, g * 255 / 100, b * 255 / 100);
++}
+diff --git a/sixel_hls.h b/sixel_hls.h
+new file mode 100644
+index 0000000..6176589
+--- /dev/null
++++ b/sixel_hls.h
+@@ -0,0 +1,7 @@
++/*
++ * Primary color hues:
++ *  blue:  0 degrees
++ *  red:   120 degrees
++ *  green: 240 degrees
++ */
++int hls_to_rgb(int hue, int lum, int sat);
+diff --git a/st.c b/st.c
+index 6f40e35..32e030a 100644
+--- a/st.c
++++ b/st.c
+@@ -14,11 +14,13 @@
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <termios.h>
++#include <time.h>
+ #include <unistd.h>
+ #include <wchar.h>
+ 
+ #include "st.h"
+ #include "win.h"
++#include "sixel.h"
+ 
+ #if   defined(__linux)
+  #include <pty.h>
+@@ -35,6 +37,8 @@
+ #define ESC_ARG_SIZ   16
+ #define STR_BUF_SIZ   ESC_BUF_SIZ
+ #define STR_ARG_SIZ   ESC_ARG_SIZ
++#define STR_TERM_ST   "\033\\"
++#define STR_TERM_BEL  "\007"
+ 
+ /* macros */
+ #define IS_SET(flag)		((term.mode & (flag)) != 0)
+@@ -42,6 +46,9 @@
+ #define ISCONTROLC1(c)		(BETWEEN(c, 0x80, 0x9f))
+ #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
+ #define ISDELIM(u)		(u && wcschr(worddelimiters, u))
++#define TLINE(y)		((y) < term.scr ? term.hist[((y) + term.histi - \
++            term.scr + HISTSIZE + 1) % HISTSIZE] : \
++            term.line[(y) - term.scr])
+ 
+ enum term_mode {
+ 	MODE_WRAP        = 1 << 0,
+@@ -51,6 +58,9 @@ enum term_mode {
+ 	MODE_ECHO        = 1 << 4,
+ 	MODE_PRINT       = 1 << 5,
+ 	MODE_UTF8        = 1 << 6,
++	MODE_SIXEL       = 1 << 7,
++	MODE_SIXEL_CUR_RT= 1 << 8,
++	MODE_SIXEL_SDM   = 1 << 9
+ };
+ 
+ enum cursor_movement {
+@@ -82,15 +92,9 @@ enum escape_state {
+ 	ESC_STR_END    = 16, /* a final string was encountered */
+ 	ESC_TEST       = 32, /* Enter in test mode */
+ 	ESC_UTF8       = 64,
++	ESC_DCS        = 128,
+ };
+ 
+-typedef struct {
+-	Glyph attr; /* current char attributes */
+-	int x;
+-	int y;
+-	char state;
+-} TCursor;
+-
+ typedef struct {
+ 	int mode;
+ 	int type;
+@@ -109,27 +113,6 @@ typedef struct {
+ 	int alt;
+ } Selection;
+ 
+-/* Internal representation of the screen */
+-typedef struct {
+-	int row;      /* nb row */
+-	int col;      /* nb col */
+-	Line *line;   /* screen */
+-	Line *alt;    /* alternate screen */
+-	int *dirty;   /* dirtyness of lines */
+-	TCursor c;    /* cursor */
+-	int ocx;      /* old cursor col */
+-	int ocy;      /* old cursor row */
+-	int top;      /* top    scroll limit */
+-	int bot;      /* bottom scroll limit */
+-	int mode;     /* terminal mode flags */
+-	int esc;      /* escape state flags */
+-	char trantbl[4]; /* charset table translation */
+-	int charset;  /* current charset */
+-	int icharset; /* selected charset for sequence */
+-	int *tabs;
+-	Rune lastc;   /* last printed char outside of sequence, 0 if control */
+-} Term;
+-
+ /* CSI Escape sequence structs */
+ /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
+ typedef struct {
+@@ -150,6 +133,7 @@ typedef struct {
+ 	size_t len;            /* raw string length */
+ 	char *args[STR_ARG_SIZ];
+ 	int narg;              /* nb of args */
++	char *term;            /* terminator: ST or BEL */
+ } STREscape;
+ 
+ static void execsh(char *, char **);
+@@ -159,6 +143,7 @@ static void ttywriteraw(const char *, size_t);
+ 
+ static void csidump(void);
+ static void csihandle(void);
++static void dcshandle(void);
+ static void csiparse(void);
+ static void csireset(void);
+ static void osc_color_response(int, int, int);
+@@ -174,7 +159,9 @@ static void tdumpline(int);
+ static void tdump(void);
+ static void tclearregion(int, int, int, int);
+ static void tcursor(int);
++static void tresetcursor(void);
+ static void tdeletechar(int);
++static void tdeleteimages(void);
+ static void tdeleteline(int);
+ static void tinsertblank(int);
+ static void tinsertblankline(int);
+@@ -185,33 +172,30 @@ static void tnewline(int);
+ static void tputtab(int);
+ static void tputc(Rune);
+ static void treset(void);
+-static void tscrollup(int, int);
+-static void tscrolldown(int, int);
++static void tscrollup(int, int, int);
++static void tscrolldown(int, int, int);
+ static void tsetattr(const int *, int);
+ static void tsetchar(Rune, const Glyph *, int, int);
+ static void tsetdirt(int, int);
+ static void tsetscroll(int, int);
++static inline void tsetsixelattr(Line line, int x1, int x2);
+ static void tswapscreen(void);
+ static void tsetmode(int, int, const int *, int);
+ static int twrite(const char *, int, int);
+-static void tfulldirt(void);
+ static void tcontrolcode(uchar );
+ static void tdectest(char );
+ static void tdefutf8(char);
+ static int32_t tdefcolor(const int *, int *, int);
+ static void tdeftran(char);
+ static void tstrsequence(uchar);
+-
+-static void drawregion(int, int, int, int);
+-
+ static void selnormalize(void);
+ static void selscroll(int, int);
+ static void selsnap(int *, int *, int);
+ 
+ static size_t utf8decode(const char *, Rune *, size_t);
+-static Rune utf8decodebyte(char, size_t *);
+-static char utf8encodebyte(Rune, size_t);
+-static size_t utf8validate(Rune *, size_t);
++static inline Rune utf8decodebyte(char, size_t *);
++static inline char utf8encodebyte(Rune, size_t);
++static inline size_t utf8validate(Rune *, size_t);
+ 
+ static char *base64dec(const char *);
+ static char base64dec_getc(const char **);
+@@ -219,13 +203,13 @@ static char base64dec_getc(const char **);
+ static ssize_t xwrite(int, const char *, size_t);
+ 
+ /* Globals */
+-static Term term;
+ static Selection sel;
+ static CSIEscape csiescseq;
+ static STREscape strescseq;
+ static int iofd = 1;
+ static int cmdfd;
+ static pid_t pid;
++sixel_state_t sixel_st;
+ 
+ static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
+ static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
+@@ -283,24 +267,27 @@ xstrdup(const char *s)
+ size_t
+ utf8decode(const char *c, Rune *u, size_t clen)
+ {
+-	size_t i, j, len, type;
++	size_t i, len;
+ 	Rune udecoded;
+ 
+ 	*u = UTF_INVALID;
+ 	if (!clen)
+ 		return 0;
+ 	udecoded = utf8decodebyte(c[0], &len);
+-	if (!BETWEEN(len, 1, UTF_SIZ))
++	if (!BETWEEN(len, 2, UTF_SIZ)) {
++		*u = (len == 1) ? udecoded : UTF_INVALID;
+ 		return 1;
+-	for (i = 1, j = 1; i < clen && j < len; ++i, ++j) {
+-		udecoded = (udecoded << 6) | utf8decodebyte(c[i], &type);
+-		if (type != 0)
+-			return j;
+ 	}
+-	if (j < len)
++	clen = MIN(clen, len);
++	for (i = 1; i < clen; ++i) {
++		if ((c[i] & 0xC0) != 0x80)
++			return i;
++		udecoded = (udecoded << 6) | (c[i] & 0x3F);
++	}
++	if (i < len)
+ 		return 0;
+-	*u = udecoded;
+-	utf8validate(u, len);
++	*u = (!BETWEEN(udecoded, utfmin[len], utfmax[len]) || BETWEEN(udecoded, 0xD800, 0xDFFF))
++	        ? UTF_INVALID : udecoded;
+ 
+ 	return len;
+ }
+@@ -409,10 +396,10 @@ tlinelen(int y)
+ {
+ 	int i = term.col;
+ 
+-	if (term.line[y][i - 1].mode & ATTR_WRAP)
++	if (TLINE(y)[i - 1].mode & ATTR_WRAP)
+ 		return i;
+ 
+-	while (i > 0 && term.line[y][i - 1].u == ' ')
++	while (i > 0 && TLINE(y)[i - 1].u == ' ')
+ 		--i;
+ 
+ 	return i;
+@@ -521,7 +508,7 @@ selsnap(int *x, int *y, int direction)
+ 		 * Snap around if the word wraps around at the end or
+ 		 * beginning of a line.
+ 		 */
+-		prevgp = &term.line[*y][*x];
++		prevgp = &TLINE(*y)[*x];
+ 		prevdelim = ISDELIM(prevgp->u);
+ 		for (;;) {
+ 			newx = *x + direction;
+@@ -536,14 +523,14 @@ selsnap(int *x, int *y, int direction)
+ 					yt = *y, xt = *x;
+ 				else
+ 					yt = newy, xt = newx;
+-				if (!(term.line[yt][xt].mode & ATTR_WRAP))
++				if (!(TLINE(yt)[xt].mode & ATTR_WRAP))
+ 					break;
+ 			}
+ 
+ 			if (newx >= tlinelen(newy))
+ 				break;
+ 
+-			gp = &term.line[newy][newx];
++			gp = &TLINE(newy)[newx];
+ 			delim = ISDELIM(gp->u);
+ 			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
+ 					|| (delim && gp->u != prevgp->u)))
+@@ -564,14 +551,14 @@ selsnap(int *x, int *y, int direction)
+ 		*x = (direction < 0) ? 0 : term.col - 1;
+ 		if (direction < 0) {
+ 			for (; *y > 0; *y += direction) {
+-				if (!(term.line[*y-1][term.col-1].mode
++				if (!(TLINE(*y-1)[term.col-1].mode
+ 						& ATTR_WRAP)) {
+ 					break;
+ 				}
+ 			}
+ 		} else if (direction > 0) {
+ 			for (; *y < term.row-1; *y += direction) {
+-				if (!(term.line[*y][term.col-1].mode
++				if (!(TLINE(*y)[term.col-1].mode
+ 						& ATTR_WRAP)) {
+ 					break;
+ 				}
+@@ -602,13 +589,13 @@ getsel(void)
+ 		}
+ 
+ 		if (sel.type == SEL_RECTANGULAR) {
+-			gp = &term.line[y][sel.nb.x];
++			gp = &TLINE(y)[sel.nb.x];
+ 			lastx = sel.ne.x;
+ 		} else {
+-			gp = &term.line[y][sel.nb.y == y ? sel.nb.x : 0];
++			gp = &TLINE(y)[sel.nb.y == y ? sel.nb.x : 0];
+ 			lastx = (sel.ne.y == y) ? sel.ne.x : term.col-1;
+ 		}
+-		last = &term.line[y][MIN(lastx, linelen-1)];
++		last = &TLINE(y)[MIN(lastx, linelen-1)];
+ 		while (last >= gp && last->u == ' ')
+ 			--last;
+ 
+@@ -641,9 +628,15 @@ selclear(void)
+ {
+ 	if (sel.ob.x == -1)
+ 		return;
++	selremove();
++	tsetdirt(sel.nb.y, sel.ne.y);
++}
++
++void
++selremove(void)
++{
+ 	sel.mode = SEL_IDLE;
+ 	sel.ob.x = -1;
+-	tsetdirt(sel.nb.y, sel.ne.y);
+ }
+ 
+ void
+@@ -697,6 +690,7 @@ execsh(char *cmd, char **args)
+ 	setenv("SHELL", sh, 1);
+ 	setenv("HOME", pw->pw_dir, 1);
+ 	setenv("TERM", termname, 1);
++	setenv("COLORTERM", "truecolor", 1);
+ 
+ 	signal(SIGCHLD, SIG_DFL);
+ 	signal(SIGHUP, SIG_DFL);
+@@ -715,17 +709,16 @@ sigchld(int a)
+ 	int stat;
+ 	pid_t p;
+ 
+-	if ((p = waitpid(pid, &stat, WNOHANG)) < 0)
+-		die("waiting for pid %hd failed: %s\n", pid, strerror(errno));
+-
+-	if (pid != p)
+-		return;
++	while ((p = waitpid(-1, &stat, WNOHANG)) > 0) {
++		if (p == pid) {
+ 
+-	if (WIFEXITED(stat) && WEXITSTATUS(stat))
+-		die("child exited with status %d\n", WEXITSTATUS(stat));
+-	else if (WIFSIGNALED(stat))
+-		die("child terminated due to signal %d\n", WTERMSIG(stat));
+-	_exit(0);
++			if (WIFEXITED(stat) && WEXITSTATUS(stat))
++				die("child exited with status %d\n", WEXITSTATUS(stat));
++			else if (WIFSIGNALED(stat))
++				die("child terminated due to signal %d\n", WTERMSIG(stat));
++			_exit(0);
++		}
++	}
+ }
+ 
+ void
+@@ -756,6 +749,7 @@ int
+ ttynew(const char *line, char *cmd, const char *out, char **args)
+ {
+ 	int m, s;
++	struct sigaction sa;
+ 
+ 	if (out) {
+ 		term.mode |= MODE_PRINT;
+@@ -808,7 +802,10 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
+ #endif
+ 		close(s);
+ 		cmdfd = m;
+-		signal(SIGCHLD, sigchld);
++		memset(&sa, 0, sizeof(sa));
++		sigemptyset(&sa.sa_mask);
++		sa.sa_handler = sigchld;
++		sigaction(SIGCHLD, &sa, NULL);
+ 		break;
+ 	}
+ 	return cmdfd;
+@@ -844,6 +841,9 @@ void
+ ttywrite(const char *s, size_t n, int may_echo)
+ {
+ 	const char *next;
++	Arg arg = (Arg) { .i = term.scr };
++
++	kscrolldown(&arg);
+ 
+ 	if (may_echo && IS_SET(MODE_ECHO))
+ 		twrite(s, n, 1);
+@@ -960,6 +960,12 @@ tattrset(int attr)
+ 	return 0;
+ }
+ 
++int
++tisaltscr(void)
++{
++	return IS_SET(MODE_ALTSCREEN);
++}
++
+ void
+ tsetdirt(int top, int bot)
+ {
+@@ -990,6 +996,13 @@ tsetdirtattr(int attr)
+ 	}
+ }
+ 
++void
++tsetsixelattr(Line line, int x1, int x2)
++{
++	for (; x1 <= x2; x1++)
++		line[x1].mode |= ATTR_SIXEL;
++}
++
+ void
+ tfulldirt(void)
+ {
+@@ -1010,16 +1023,19 @@ tcursor(int mode)
+ 	}
+ }
+ 
++void
++tresetcursor(void)
++{
++	term.c = (TCursor){ { .mode = ATTR_NULL, .fg = defaultfg, .bg = defaultbg },
++	                    .x = 0, .y = 0, .state = CURSOR_DEFAULT };
++}
++
+ void
+ treset(void)
+ {
+ 	uint i;
+ 
+-	term.c = (TCursor){{
+-		.mode = ATTR_NULL,
+-		.fg = defaultfg,
+-		.bg = defaultbg
+-	}, .x = 0, .y = 0, .state = CURSOR_DEFAULT};
++	tresetcursor();
+ 
+ 	memset(term.tabs, 0, term.col * sizeof(*term.tabs));
+ 	for (i = tabspaces; i < term.col; i += tabspaces)
+@@ -1034,6 +1050,7 @@ treset(void)
+ 		tmoveto(0, 0);
+ 		tcursor(CURSOR_SAVE);
+ 		tclearregion(0, 0, term.col-1, term.row-1);
++		tdeleteimages();
+ 		tswapscreen();
+ 	}
+ }
+@@ -1050,21 +1067,68 @@ void
+ tswapscreen(void)
+ {
+ 	Line *tmp = term.line;
++	ImageList *im = term.images;
+ 
+ 	term.line = term.alt;
+ 	term.alt = tmp;
++	term.images = term.images_alt;
++	term.images_alt = im;
+ 	term.mode ^= MODE_ALTSCREEN;
+ 	tfulldirt();
+ }
+ 
+ void
+-tscrolldown(int orig, int n)
++kscrolldown(const Arg* a)
++{
++	int n = a->i;
++
++	if (n < 0)
++		n = 5 + n;
++
++	if (n > term.scr)
++		n = term.scr;
++
++	if (term.scr > 0) {
++		term.scr -= n;
++		selscroll(0, -n);
++		tfulldirt();
++	}
++}
++
++void
++kscrollup(const Arg* a)
++{
++	int n = a->i;
++
++	if (n < 0)
++		n = 5 + n;
++
++	if (term.scr <= HISTSIZE-n) {
++		term.scr += n;
++		selscroll(0, n);
++		tfulldirt();
++	}
++}
++
++void
++tscrolldown(int orig, int n, int copyhist)
+ {
+ 	int i;
+ 	Line temp;
++	int bot = term.bot;
++	int scr = 0;
++	int itop = orig + scr, ibot = bot + scr;
++	ImageList *im, *next;
+ 
+ 	LIMIT(n, 0, term.bot-orig+1);
+ 
++	if (copyhist) {
++		term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
++		temp = term.hist[term.histi];
++		term.hist[term.histi] = term.line[term.bot];
++		term.line[term.bot] = temp;
++	}
++
+ 	tsetdirt(orig, term.bot-n);
+ 	tclearregion(0, term.bot-n+1, term.col-1, term.bot);
+ 
+@@ -1074,17 +1138,42 @@ tscrolldown(int orig, int n)
+ 		term.line[i-n] = temp;
+ 	}
+ 
+-	selscroll(orig, n);
++	/* move images, if they are inside the scrolling region */
++	for (im = term.images; im; im = next) {
++		next = im->next;
++		if (im->y >= itop && im->y <= ibot) {
++			im->y += n;
++			if (im->y > ibot)
++				delete_image(im);
++		}
++	}
++
++	if (term.scr == 0)
++		selscroll(orig, n);
+ }
+ 
+ void
+-tscrollup(int orig, int n)
++tscrollup(int orig, int n, int copyhist)
+ {
+ 	int i;
+ 	Line temp;
++	int bot = term.bot;
++	int scr = 0;
++	int itop = orig + scr, ibot = bot + scr;
++	ImageList *im, *next;
+ 
+ 	LIMIT(n, 0, term.bot-orig+1);
+ 
++	if (copyhist) {
++		term.histi = (term.histi + 1) % HISTSIZE;
++		temp = term.hist[term.histi];
++		term.hist[term.histi] = term.line[orig];
++		term.line[orig] = temp;
++	}
++
++	if (term.scr > 0 && term.scr < HISTSIZE)
++		term.scr = MIN(term.scr + n, HISTSIZE-1);
++
+ 	tclearregion(0, orig, term.col-1, orig+n-1);
+ 	tsetdirt(orig+n, term.bot);
+ 
+@@ -1094,7 +1183,18 @@ tscrollup(int orig, int n)
+ 		term.line[i+n] = temp;
+ 	}
+ 
+-	selscroll(orig, -n);
++	/* move images, if they are inside the scrolling region */
++	for (im = term.images; im; im = next) {
++		next = im->next;
++		if (im->y >= itop && im->y <= ibot) {
++			im->y -= n;
++			if (im->y < itop)
++				delete_image(im);
++		}
++	}
++
++	if (term.scr == 0)
++		selscroll(orig, -n);
+ }
+ 
+ void
+@@ -1123,7 +1223,7 @@ tnewline(int first_col)
+ 	int y = term.c.y;
+ 
+ 	if (y == term.bot) {
+-		tscrollup(term.top, 1);
++		tscrollup(term.top, 1, 1);
+ 	} else {
+ 		y++;
+ 	}
+@@ -1291,14 +1391,25 @@ void
+ tinsertblankline(int n)
+ {
+ 	if (BETWEEN(term.c.y, term.top, term.bot))
+-		tscrolldown(term.c.y, n);
++		tscrolldown(term.c.y, n, 0);
++}
++
++void
++tdeleteimages(void)
++{
++	ImageList *im, *next;
++
++	for (im = term.images; im; im = next) {
++		next = im->next;
++		delete_image(im);
++	}
+ }
+ 
+ void
+ tdeleteline(int n)
+ {
+ 	if (BETWEEN(term.c.y, term.top, term.bot))
+-		tscrollup(term.c.y, n);
++		tscrollup(term.c.y, n, 0);
+ }
+ 
+ int32_t
+@@ -1573,6 +1684,12 @@ tsetmode(int priv, int set, const int *args, int narg)
+ 				      and can be mistaken for other control
+ 				      codes. */
+ 				break;
++			case 80: /* DECSDM -- Sixel Display Mode */
++				MODBIT(term.mode, set, MODE_SIXEL_SDM);
++				break;
++			case 8452: /* sixel scrolling leaves cursor to right of graphic */
++				MODBIT(term.mode, set, MODE_SIXEL_CUR_RT);
++				break;
+ 			default:
+ 				fprintf(stderr,
+ 					"erresc: unknown private set/reset mode %d\n",
+@@ -1609,7 +1726,10 @@ void
+ csihandle(void)
+ {
+ 	char buf[40];
+-	int len;
++	int n = 0, len;
++	ImageList *im, *next;
++	int pi, pa;
++	int maxcol = term.col;
+ 
+ 	switch (csiescseq.mode[0]) {
+ 	default:
+@@ -1707,19 +1827,30 @@ csihandle(void)
+ 	case 'J': /* ED -- Clear screen */
+ 		switch (csiescseq.arg[0]) {
+ 		case 0: /* below */
+-			tclearregion(term.c.x, term.c.y, term.col-1, term.c.y);
+-			if (term.c.y < term.row-1) {
+-				tclearregion(0, term.c.y+1, term.col-1,
+-						term.row-1);
+-			}
++			tclearregion(term.c.x, term.c.y, maxcol-1, term.c.y);
++			if (term.c.y < term.row-1)
++				tclearregion(0, term.c.y+1, maxcol-1, term.row-1);
+ 			break;
+ 		case 1: /* above */
+ 			if (term.c.y > 0)
+-				tclearregion(0, 0, term.col-1, term.c.y-1);
++				tclearregion(0, 0, maxcol-1, term.c.y-1);
+ 			tclearregion(0, term.c.y, term.c.x, term.c.y);
+ 			break;
+-		case 2: /* all */
+-			tclearregion(0, 0, term.col-1, term.row-1);
++		case 2: /* screen */
++
++			tclearregion(0, 0, maxcol-1, term.row-1);
++			tdeleteimages();
++			break;
++		case 3: /* scrollback */
++			for (im = term.images; im; im = next) {
++				next = im->next;
++				if (im->y < 0)
++					delete_image(im);
++			}
++			break;
++		case 6: /* sixels */
++			tdeleteimages();
++			tfulldirt();
+ 			break;
+ 		default:
+ 			goto unknown;
+@@ -1728,25 +1859,49 @@ csihandle(void)
+ 	case 'K': /* EL -- Clear line */
+ 		switch (csiescseq.arg[0]) {
+ 		case 0: /* right */
+-			tclearregion(term.c.x, term.c.y, term.col-1,
+-					term.c.y);
++			tclearregion(term.c.x, term.c.y, maxcol-1, term.c.y);
+ 			break;
+ 		case 1: /* left */
+ 			tclearregion(0, term.c.y, term.c.x, term.c.y);
+ 			break;
+ 		case 2: /* all */
+-			tclearregion(0, term.c.y, term.col-1, term.c.y);
++			tclearregion(0, term.c.y, maxcol-1, term.c.y);
+ 			break;
+ 		}
+ 		break;
+-	case 'S': /* SU -- Scroll <n> line up */
+-		if (csiescseq.priv) break;
++	case 'S': /* SU -- Scroll <n> line up ; XTSMGRAPHICS */
++		if (csiescseq.priv) {
++			if (csiescseq.narg > 1) {
++				/* XTSMGRAPHICS */
++				pi = csiescseq.arg[0];
++				pa = csiescseq.arg[1];
++				if (pi == 1 && (pa == 1 || pa == 2 || pa == 4)) {
++					/* number of sixel color registers */
++					/* (read, reset and read the maximum value give the same response) */
++					n = snprintf(buf, sizeof buf, "\033[?1;0;%dS", DECSIXEL_PALETTE_MAX);
++					ttywrite(buf, n, 1);
++					break;
++				} else if (pi == 2 && (pa == 1 || pa == 2 || pa == 4)) {
++					/* sixel graphics geometry (in pixels) */
++					/* (read, reset and read the maximum value give the same response) */
++					n = snprintf(buf, sizeof buf, "\033[?2;0;%d;%dS",
++					             MIN(term.col * win.cw, DECSIXEL_WIDTH_MAX),
++					             MIN(term.row * win.ch, DECSIXEL_HEIGHT_MAX));
++					ttywrite(buf, n, 1);
++					break;
++				}
++				/* the number of color registers and sixel geometry can't be changed */
++				n = snprintf(buf, sizeof buf, "\033[?%d;3;0S", pi); /* failure */
++				ttywrite(buf, n, 1);
++			}
++			goto unknown;
++		}
+ 		DEFAULT(csiescseq.arg[0], 1);
+-		tscrollup(term.top, csiescseq.arg[0]);
++		tscrollup(term.top, csiescseq.arg[0], 0);
+ 		break;
+ 	case 'T': /* SD -- Scroll <n> line down */
+ 		DEFAULT(csiescseq.arg[0], 1);
+-		tscrolldown(term.top, csiescseq.arg[0]);
++		tscrolldown(term.top, csiescseq.arg[0], 0);
+ 		break;
+ 	case 'L': /* IL -- Insert <n> blank lines */
+ 		DEFAULT(csiescseq.arg[0], 1);
+@@ -1809,6 +1964,27 @@ csihandle(void)
+ 	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
+ 		tcursor(CURSOR_SAVE);
+ 		break;
++	case 't': /* title stack operations ; XTWINOPS */
++		switch (csiescseq.arg[0]) {
++		case 14: /* text area size in pixels */
++			if (csiescseq.narg > 1)
++				goto unknown;
++			n = snprintf(buf, sizeof buf, "\033[4;%d;%dt",
++			             term.row * win.ch, term.col * win.cw);
++			ttywrite(buf, n, 1);
++			break;
++		case 16: /* character cell size in pixels */
++			n = snprintf(buf, sizeof buf, "\033[6;%d;%dt", win.ch, win.cw);
++			ttywrite(buf, n, 1);
++			break;
++		case 18: /* size of the text area in characters */
++			n = snprintf(buf, sizeof buf, "\033[8;%d;%dt", term.row, term.col);
++			ttywrite(buf, n, 1);
++			break;
++		default:
++			goto unknown;
++		}
++		break;
+ 	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
+ 		if (csiescseq.priv) {
+ 			goto unknown;
+@@ -1873,8 +2049,8 @@ osc_color_response(int num, int index, int is_osc4)
+ 		return;
+ 	}
+ 
+-	n = snprintf(buf, sizeof buf, "\033]%s%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
+-	             is_osc4 ? "4;" : "", num, r, r, g, g, b, b);
++	n = snprintf(buf, sizeof buf, "\033]%s%d;rgb:%02x%02x/%02x%02x/%02x%02x%s",
++	             is_osc4 ? "4;" : "", num, r, r, g, g, b, b, strescseq.term);
+ 	if (n < 0 || n >= sizeof(buf)) {
+ 		fprintf(stderr, "error: %s while printing %s response\n",
+ 		        n < 0 ? "snprintf failed" : "truncation occurred",
+@@ -1894,6 +2070,11 @@ strhandle(void)
+ 		{ defaultbg, "background" },
+ 		{ defaultcs, "cursor" }
+ 	};
++	ImageList *im, *newimages, *next, *tail = NULL;
++	int i, x1, y1, x2, y2, y, numimages;
++	int cx, cy;
++	Line line;
++	int scr = 0;
+ 
+ 	term.esc &= ~(ESC_STR_END|ESC_STR);
+ 	strparse();
+@@ -1927,6 +2108,8 @@ strhandle(void)
+ 				}
+ 			}
+ 			return;
++		case 8: /* Clear Hyperlinks */
++			return;
+ 		case 10: /* set dynamic VT100 text foreground color */
+ 		case 11: /* set dynamic VT100 text background color */
+ 		case 12: /* set dynamic text cursor color */
+@@ -1989,6 +2172,95 @@ strhandle(void)
+ 		xsettitle(strescseq.args[0]);
+ 		return;
+ 	case 'P': /* DCS -- Device Control String */
++		if (IS_SET(MODE_SIXEL)) {
++			term.mode &= ~MODE_SIXEL;
++			if (!sixel_st.image.data) {
++				sixel_parser_deinit(&sixel_st);
++				return;
++			}
++			cx = IS_SET(MODE_SIXEL_SDM) ? 0 : term.c.x;
++			cy = IS_SET(MODE_SIXEL_SDM) ? 0 : term.c.y;
++			if ((numimages = sixel_parser_finalize(&sixel_st, &newimages,
++					cx, cy + scr, win.cw, win.ch)) <= 0) {
++				sixel_parser_deinit(&sixel_st);
++				perror("sixel_parser_finalize() failed");
++				return;
++			}
++			sixel_parser_deinit(&sixel_st);
++			x1 = newimages->x;
++			y1 = newimages->y;
++			x2 = x1 + newimages->cols;
++			y2 = y1 + numimages;
++			/* Delete the old images that are covered by the new image(s). We also need
++			 * to check if they have already been deleted before adding the new ones. */
++			if (term.images) {
++				char transparent[numimages];
++				for (i = 0, im = newimages; im; im = im->next, i++) {
++					transparent[i] = im->transparent;
++				}
++				for (im = term.images; im; im = next) {
++					next = im->next;
++					if (im->y >= y1 && im->y < y2) {
++						y = im->y - scr;
++						if (y >= 0 && y < term.row && term.dirty[y]) {
++							line = term.line[y];
++							j = MIN(im->x + im->cols, term.col);
++							for (i = im->x; i < j; i++) {
++								if (line[i].mode & ATTR_SIXEL)
++									break;
++							}
++							if (i == j) {
++								delete_image(im);
++								continue;
++							}
++						}
++						if (im->x >= x1 && im->x + im->cols <= x2 && !transparent[im->y - y1]) {
++							delete_image(im);
++							continue;
++						}
++					}
++					tail = im;
++				}
++			}
++			if (tail) {
++				tail->next = newimages;
++				newimages->prev = tail;
++			} else {
++				term.images = newimages;
++			}
++			x2 = MIN(x2, term.col) - 1;
++			if (IS_SET(MODE_SIXEL_SDM)) {
++				/* Sixel display mode: put the sixel in the upper left corner of
++				 * the screen, disable scrolling (the sixel will be truncated if
++				 * it is too long) and do not change the cursor position. */
++				for (i = 0, im = newimages; im; im = next, i++) {
++					next = im->next;
++					if (i >= term.row) {
++						delete_image(im);
++						continue;
++					}
++					im->y = i + scr;
++					tsetsixelattr(term.line[i], x1, x2);
++					term.dirty[MIN(im->y, term.row-1)] = 1;
++				}
++			} else {
++				for (i = 0, im = newimages; im; im = next, i++) {
++					next = im->next;
++					im->y = term.c.y + scr;
++					tsetsixelattr(term.line[term.c.y], x1, x2);
++					term.dirty[MIN(im->y, term.row-1)] = 1;
++					if (i < numimages-1) {
++						im->next = NULL;
++						tnewline(0);
++						im->next = next;
++					}
++				}
++				/* if mode 8452 is set, sixel scrolling leaves cursor to right of graphic */
++				if (IS_SET(MODE_SIXEL_CUR_RT))
++					term.c.x = MIN(term.c.x + newimages->cols, term.col-1);
++			}
++		}
++		return;
+ 	case '_': /* APC -- Application Program Command */
+ 	case '^': /* PM -- Privacy Message */
+ 		return;
+@@ -2010,6 +2282,16 @@ strparse(void)
+ 	if (*p == '\0')
+ 		return;
+ 
++	/* preserve semicolons in window titles, icon names and OSC 7 sequences */
++	if (strescseq.type == ']' && (
++		p[0] <= '2'
++	) && p[1] == ';') {
++		strescseq.args[strescseq.narg++] = p;
++		strescseq.args[strescseq.narg++] = p + 2;
++		p[1] = '\0';
++		return;
++	}
++
+ 	while (strescseq.narg < STR_ARG_SIZ) {
+ 		strescseq.args[strescseq.narg++] = p;
+ 		while ((c = *p) != ';' && c != '\0')
+@@ -2044,7 +2326,7 @@ strdump(void)
+ 			fprintf(stderr, "(%02x)", c);
+ 		}
+ 	}
+-	fprintf(stderr, "ESC\\\n");
++	fprintf(stderr, (strescseq.term[0] == 0x1b) ? "ESC\\\n" : "BEL\n");
+ }
+ 
+ void
+@@ -2182,9 +2464,12 @@ tdectest(char c)
+ void
+ tstrsequence(uchar c)
+ {
++	strreset();
++
+ 	switch (c) {
+ 	case 0x90:   /* DCS -- Device Control String */
+ 		c = 'P';
++		term.esc |= ESC_DCS;
+ 		break;
+ 	case 0x9f:   /* APC -- Application Program Command */
+ 		c = '_';
+@@ -2196,7 +2481,6 @@ tstrsequence(uchar c)
+ 		c = ']';
+ 		break;
+ 	}
+-	strreset();
+ 	strescseq.type = c;
+ 	term.esc |= ESC_STR;
+ }
+@@ -2223,6 +2507,7 @@ tcontrolcode(uchar ascii)
+ 	case '\a':   /* BEL */
+ 		if (term.esc & ESC_STR_END) {
+ 			/* backwards compatibility to xterm */
++			strescseq.term = STR_TERM_BEL;
+ 			strhandle();
+ 		} else {
+ 			xbell();
+@@ -2298,6 +2583,38 @@ tcontrolcode(uchar ascii)
+ 	term.esc &= ~(ESC_STR_END|ESC_STR);
+ }
+ 
++void
++dcshandle(void)
++{
++	int bgcolor, transparent;
++	unsigned char r, g, b, a = 255;
++
++	switch (csiescseq.mode[0]) {
++	default:
++	unknown:
++		fprintf(stderr, "erresc: unknown csi ");
++		csidump();
++		/* die(""); */
++		break;
++	case 'q': /* DECSIXEL */
++		transparent = (csiescseq.narg >= 2 && csiescseq.arg[1] == 1);
++		if (IS_TRUECOL(term.c.attr.bg)) {
++			r = term.c.attr.bg >> 16 & 255;
++			g = term.c.attr.bg >> 8 & 255;
++			b = term.c.attr.bg >> 0 & 255;
++		} else {
++			xgetcolor(term.c.attr.bg, &r, &g, &b);
++			if (term.c.attr.bg == defaultbg)
++				a = dc.col[defaultbg].pixel >> 24 & 255;
++		}
++		bgcolor = a << 24 | r << 16 | g << 8 | b;
++		if (sixel_parser_init(&sixel_st, transparent, (255 << 24), bgcolor, 1, win.cw, win.ch) != 0)
++			perror("sixel_parser_init() failed");
++		term.mode |= MODE_SIXEL;
++		break;
++	}
++}
++
+ /*
+  * returns 1 when the sequence is finished and it hasn't to read
+  * more characters for this sequence, otherwise 0
+@@ -2316,6 +2633,7 @@ eschandle(uchar ascii)
+ 		term.esc |= ESC_UTF8;
+ 		return 0;
+ 	case 'P': /* DCS -- Device Control String */
++		term.esc |= ESC_DCS;
+ 	case '_': /* APC -- Application Program Command */
+ 	case '^': /* PM -- Privacy Message */
+ 	case ']': /* OSC -- Operating System Command */
+@@ -2335,7 +2653,7 @@ eschandle(uchar ascii)
+ 		return 0;
+ 	case 'D': /* IND -- Linefeed */
+ 		if (term.c.y == term.bot) {
+-			tscrollup(term.top, 1);
++			tscrollup(term.top, 1, 1);
+ 		} else {
+ 			tmoveto(term.c.x, term.c.y+1);
+ 		}
+@@ -2348,7 +2666,7 @@ eschandle(uchar ascii)
+ 		break;
+ 	case 'M': /* RI -- Reverse index */
+ 		if (term.c.y == term.top) {
+-			tscrolldown(term.top, 1);
++			tscrolldown(term.top, 1, 1);
+ 		} else {
+ 			tmoveto(term.c.x, term.c.y-1);
+ 		}
+@@ -2376,8 +2694,10 @@ eschandle(uchar ascii)
+ 		tcursor(CURSOR_LOAD);
+ 		break;
+ 	case '\\': /* ST -- String Terminator */
+-		if (term.esc & ESC_STR_END)
++		if (term.esc & ESC_STR_END) {
++			strescseq.term = STR_TERM_ST;
+ 			strhandle();
++		}
+ 		break;
+ 	default:
+ 		fprintf(stderr, "erresc: unknown sequence ESC 0x%02X '%c'\n",
+@@ -2417,11 +2737,14 @@ tputc(Rune u)
+ 	if (term.esc & ESC_STR) {
+ 		if (u == '\a' || u == 030 || u == 032 || u == 033 ||
+ 		   ISCONTROLC1(u)) {
+-			term.esc &= ~(ESC_START|ESC_STR);
++			term.esc &= ~(ESC_START|ESC_STR|ESC_DCS);
+ 			term.esc |= ESC_STR_END;
+ 			goto check_control_code;
+ 		}
+ 
++		if (term.esc & ESC_DCS)
++			goto check_control_code;
++
+ 		if (strescseq.len+len >= strescseq.siz) {
+ 			/*
+ 			 * Here is a bug in terminals. If the user never sends
+@@ -2475,6 +2798,15 @@ check_control_code:
+ 				csihandle();
+ 			}
+ 			return;
++		} else if (term.esc & ESC_DCS) {
++			csiescseq.buf[csiescseq.len++] = u;
++			if (BETWEEN(u, 0x40, 0x7E)
++					|| csiescseq.len >= \
++					sizeof(csiescseq.buf)-1) {
++				csiparse();
++				dcshandle();
++			}
++			return;
+ 		} else if (term.esc & ESC_UTF8) {
+ 			tdefutf8(u);
+ 		} else if (term.esc & ESC_ALTCHARSET) {
+@@ -2545,7 +2877,10 @@ twrite(const char *buf, int buflen, int show_ctrl)
+ 	int n;
+ 
+ 	for (n = 0; n < buflen; n += charsize) {
+-		if (IS_SET(MODE_UTF8)) {
++		if (IS_SET(MODE_SIXEL) && sixel_st.state != PS_ESC) {
++			charsize = sixel_parser_parse(&sixel_st, (const unsigned char*)buf + n, buflen - n);
++			continue;
++		} else if (IS_SET(MODE_UTF8)) {
+ 			/* process a complete utf8 char */
+ 			charsize = utf8decode(buf + n, &u, buflen - n);
+ 			if (charsize == 0)
+@@ -2572,11 +2907,13 @@ twrite(const char *buf, int buflen, int show_ctrl)
+ void
+ tresize(int col, int row)
+ {
+-	int i;
++	int i, j;
+ 	int minrow = MIN(row, term.row);
+ 	int mincol = MIN(col, term.col);
+ 	int *bp;
+-	TCursor c;
++	int x2;
++	Line line;
++	ImageList *im, *next;
+ 
+ 	if (col < 1 || row < 1) {
+ 		fprintf(stderr,
+@@ -2584,23 +2921,19 @@ tresize(int col, int row)
+ 		return;
+ 	}
+ 
+-	/*
+-	 * slide screen to keep cursor where we expect it -
+-	 * tscrollup would work here, but we can optimize to
+-	 * memmove because we're freeing the earlier lines
+-	 */
+-	for (i = 0; i <= term.c.y - row; i++) {
+-		free(term.line[i]);
+-		free(term.alt[i]);
+-	}
+-	/* ensure that both src and dst are not NULL */
+-	if (i > 0) {
+-		memmove(term.line, term.line + i, row * sizeof(Line));
+-		memmove(term.alt, term.alt + i, row * sizeof(Line));
+-	}
+-	for (i += row; i < term.row; i++) {
+-		free(term.line[i]);
+-		free(term.alt[i]);
++	/* scroll both screens independently */
++	if (row < term.row) {
++		tcursor(CURSOR_SAVE);
++		tsetscroll(0, term.row - 1);
++		for (i = 0; i < 2; i++) {
++			if (term.c.y >= row) {
++				tscrollup(0, term.c.y - row + 1, 1); //vishnup TODO: 1 or 0?
++			}
++			for (j = row; j < term.row; j++)
++				free(term.line[j]);
++			tswapscreen();
++			tcursor(CURSOR_LOAD);
++		}
+ 	}
+ 
+ 	/* resize to new height */
+@@ -2609,6 +2942,15 @@ tresize(int col, int row)
+ 	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
+ 	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
+ 
++	int k;
++	for (i = 0; i < HISTSIZE; i++) {
++		term.hist[i] = xrealloc(term.hist[i], col * sizeof(Glyph));
++		for (k = mincol; k < col; k++) {
++			term.hist[i][k] = term.c.attr;
++			term.hist[i][k].u = ' ';
++		}
++	}
++
+ 	/* resize each row to new width, zero-pad if needed */
+ 	for (i = 0; i < minrow; i++) {
+ 		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
+@@ -2622,7 +2964,6 @@ tresize(int col, int row)
+ 	}
+ 	if (col > term.col) {
+ 		bp = term.tabs + term.col;
+-
+ 		memset(bp, 0, sizeof(*term.tabs) * (col - term.col));
+ 		while (--bp > term.tabs && !*bp)
+ 			/* nothing */ ;
+@@ -2634,11 +2975,10 @@ tresize(int col, int row)
+ 	term.row = row;
+ 	/* reset scrolling region */
+ 	tsetscroll(0, row-1);
+-	/* make use of the LIMIT in tmoveto */
+-	tmoveto(term.c.x, term.c.y);
+ 	/* Clearing both screens (it makes dirty all lines) */
+-	c = term.c;
+ 	for (i = 0; i < 2; i++) {
++		tmoveto(term.c.x, term.c.y);  /* make use of the LIMIT in tmoveto */
++		tcursor(CURSOR_SAVE);
+ 		if (mincol < col && 0 < minrow) {
+ 			tclearregion(mincol, 0, col - 1, minrow - 1);
+ 		}
+@@ -2648,7 +2988,22 @@ tresize(int col, int row)
+ 		tswapscreen();
+ 		tcursor(CURSOR_LOAD);
+ 	}
+-	term.c = c;
++
++	/* expand images into new text cells */
++	for (i = 0; i < 2; i++) {
++		for (im = term.images; im; im = next) {
++			next = im->next;
++			if (im->y < 0 || im->y >= term.row) {
++				delete_image(im);
++				continue;
++			}
++			line = term.line[im->y];
++			x2 = MIN(im->x + im->cols, col) - 1;
++			if (mincol < col && x2 >= mincol && im->x < col)
++				tsetsixelattr(line, MAX(im->x, mincol), x2);
++		}
++		tswapscreen();
++	}
+ }
+ 
+ void
+@@ -2667,7 +3022,7 @@ drawregion(int x1, int y1, int x2, int y2)
+ 			continue;
+ 
+ 		term.dirty[y] = 0;
+-		xdrawline(term.line[y], x1, y, x2);
++		xdrawline(TLINE(y), x1, y, x2);
+ 	}
+ }
+ 
+@@ -2688,8 +3043,9 @@ draw(void)
+ 		cx--;
+ 
+ 	drawregion(0, 0, term.col, term.row);
+-	xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
+-			term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
++	if (term.scr == 0)
++		xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
++				term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
+ 	term.ocx = cx;
+ 	term.ocy = term.c.y;
+ 	xfinishdraw();
+diff --git a/st.h b/st.h
+index fd3b0d8..4b55b0b 100644
+--- a/st.h
++++ b/st.h
+@@ -1,7 +1,17 @@
+ /* See LICENSE for license details. */
+ 
+ #include <stdint.h>
++#include <time.h>
+ #include <sys/types.h>
++#include <X11/Xatom.h>
++#include <X11/Xlib.h>
++#include <X11/cursorfont.h>
++#include <X11/keysym.h>
++#include <X11/Xft/Xft.h>
++#include <X11/XKBlib.h>
++
++/* Arbitrary sizes */
++#define HISTSIZE 2000
+ 
+ /* macros */
+ #define MIN(a, b)		((a) < (b) ? (a) : (b))
+@@ -21,21 +31,45 @@
+ #define IS_TRUECOL(x)		(1 << 24 & (x))
+ 
+ enum glyph_attribute {
+-	ATTR_NULL       = 0,
+-	ATTR_BOLD       = 1 << 0,
+-	ATTR_FAINT      = 1 << 1,
+-	ATTR_ITALIC     = 1 << 2,
+-	ATTR_UNDERLINE  = 1 << 3,
+-	ATTR_BLINK      = 1 << 4,
+-	ATTR_REVERSE    = 1 << 5,
+-	ATTR_INVISIBLE  = 1 << 6,
+-	ATTR_STRUCK     = 1 << 7,
+-	ATTR_WRAP       = 1 << 8,
+-	ATTR_WIDE       = 1 << 9,
+-	ATTR_WDUMMY     = 1 << 10,
++	ATTR_NULL           = 0,
++	ATTR_SET            = 1 << 0,
++	ATTR_BOLD           = 1 << 1,
++	ATTR_FAINT          = 1 << 2,
++	ATTR_ITALIC         = 1 << 3,
++	ATTR_UNDERLINE      = 1 << 4,
++	ATTR_BLINK          = 1 << 5,
++	ATTR_REVERSE        = 1 << 6,
++	ATTR_INVISIBLE      = 1 << 7,
++	ATTR_STRUCK         = 1 << 8,
++	ATTR_WRAP           = 1 << 9,
++	ATTR_WIDE           = 1 << 10,
++	ATTR_WDUMMY         = 1 << 11,
++	ATTR_SIXEL          = 1 << 16,
+ 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
+ };
+ 
++typedef struct _ImageList {
++	struct _ImageList *next, *prev;
++	unsigned char *pixels;
++	void *pixmap;
++	void *clipmask;
++	int width;
++	int height;
++	int x;
++	int y;
++	int cols;
++	int cw;
++	int ch;
++	int transparent;
++} ImageList;
++
++/* Used to control which screen(s) keybindings and mouse shortcuts apply to. */
++enum screen {
++	S_PRI = -1, /* primary screen */
++	S_ALL = 0,  /* both primary and alt screen */
++	S_ALT = 1   /* alternate screen */
++};
++
+ enum selection_mode {
+ 	SEL_IDLE = 0,
+ 	SEL_EMPTY = 1,
+@@ -59,16 +93,53 @@ typedef unsigned short ushort;
+ 
+ typedef uint_least32_t Rune;
+ 
++typedef XftDraw *Draw;
++typedef XftColor Color;
++typedef XftGlyphFontSpec GlyphFontSpec;
++
+ #define Glyph Glyph_
+ typedef struct {
+ 	Rune u;           /* character code */
+-	ushort mode;      /* attribute flags */
++	uint32_t mode;    /* attribute flags */
+ 	uint32_t fg;      /* foreground  */
+ 	uint32_t bg;      /* background  */
+ } Glyph;
+ 
+ typedef Glyph *Line;
+ 
++typedef struct {
++	Glyph attr; /* current char attributes */
++	int x;
++	int y;
++	char state;
++} TCursor;
++
++/* Internal representation of the screen */
++typedef struct {
++	int row;      /* nb row */
++	int col;      /* nb col */
++	Line *line;   /* screen */
++	Line *alt;    /* alternate screen */
++	Line hist[HISTSIZE]; /* history buffer */
++	int histi;    /* history index */
++	int scr;      /* scroll back */
++	int *dirty;   /* dirtyness of lines */
++	TCursor c;    /* cursor */
++	int ocx;      /* old cursor col */
++	int ocy;      /* old cursor row */
++	int top;      /* top    scroll limit */
++	int bot;      /* bottom scroll limit */
++	int mode;     /* terminal mode flags */
++	int esc;      /* escape state flags */
++	char trantbl[4]; /* charset table translation */
++	int charset;  /* current charset */
++	int icharset; /* selected charset for sequence */
++	int *tabs;
++	ImageList *images;     /* sixel images */
++	ImageList *images_alt; /* sixel images for alternate screen */
++	Rune lastc;   /* last printed char outside of sequence, 0 if control */
++} Term;
++
+ typedef union {
+ 	int i;
+ 	uint ui;
+@@ -77,16 +148,114 @@ typedef union {
+ 	const char *s;
+ } Arg;
+ 
++/* Purely graphic info */
++typedef struct {
++	int tw, th; /* tty width and height */
++	int w, h; /* window width and height */
++	int ch; /* char height */
++	int cw; /* char width  */
++	int mode; /* window state/mode flags */
++	int cursor; /* cursor style */
++} TermWindow;
++
++typedef struct {
++	Display *dpy;
++	Colormap cmap;
++	Window win;
++	Drawable buf;
++	GlyphFontSpec *specbuf; /* font spec buffer used for rendering */
++	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
++	Atom netwmstate, netwmfullscreen;
++	struct {
++		XIM xim;
++		XIC xic;
++		XPoint spot;
++		XVaNestedList spotlist;
++	} ime;
++	Draw draw;
++	Visual *vis;
++	XSetWindowAttributes attrs;
++	int scr;
++	int isfixed; /* is fixed geometry? */
++	int depth; /* bit depth */
++	int l, t; /* left and top offset */
++	int gm; /* geometry mask */
++} XWindow;
++
++typedef struct {
++	Atom xtarget;
++	char *primary, *clipboard;
++	struct timespec tclick1;
++	struct timespec tclick2;
++} XSelection;
++
++/* types used in config.h */
++typedef struct {
++	uint mod;
++	KeySym keysym;
++	void (*func)(const Arg *);
++	const Arg arg;
++	int screen;
++} Shortcut;
++
++typedef struct {
++	uint mod;
++	uint button;
++	void (*func)(const Arg *);
++	const Arg arg;
++	uint release;
++	int screen;
++} MouseShortcut;
++
++typedef struct {
++	KeySym k;
++	uint mask;
++	char *s;
++	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
++	signed char appkey;    /* application keypad */
++	signed char appcursor; /* application cursor */
++} Key;
++
++/* Font structure */
++#define Font Font_
++typedef struct {
++	int height;
++	int width;
++	int ascent;
++	int descent;
++	int badslant;
++	int badweight;
++	short lbearing;
++	short rbearing;
++	XftFont *match;
++	FcFontSet *set;
++	FcPattern *pattern;
++} Font;
++
++/* Drawing Context */
++typedef struct {
++	Color *col;
++	size_t collen;
++	Font font, bfont, ifont, ibfont;
++	GC gc;
++} DC;
++
+ void die(const char *, ...);
+ void redraw(void);
+ void draw(void);
++void drawregion(int, int, int, int);
++void tfulldirt(void);
+ 
++void kscrolldown(const Arg *);
++void kscrollup(const Arg *);
++void fullscreen(const Arg *);
+ void printscreen(const Arg *);
+ void printsel(const Arg *);
+ void sendbreak(const Arg *);
+ void toggleprinter(const Arg *);
+ 
+ int tattrset(int);
++int tisaltscr(void);
+ void tnew(int, int);
+ void tresize(int, int);
+ void tsetdirtattr(int);
+@@ -100,6 +269,7 @@ void resettitle(void);
+ 
+ void selclear(void);
+ void selinit(void);
++void selremove(void);
+ void selstart(int, int, int);
+ void selextend(int, int, int, int);
+ int selected(int, int);
+@@ -111,6 +281,8 @@ void *xmalloc(size_t);
+ void *xrealloc(void *, size_t);
+ char *xstrdup(const char *);
+ 
++int xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b);
++
+ /* config.h globals */
+ extern char *utmp;
+ extern char *scroll;
+@@ -124,3 +296,9 @@ extern unsigned int tabspaces;
+ extern unsigned int defaultfg;
+ extern unsigned int defaultbg;
+ extern unsigned int defaultcs;
++
++extern DC dc;
++extern XWindow xw;
++extern XSelection xsel;
++extern TermWindow win;
++extern Term term;
+diff --git a/x.c b/x.c
+index d73152b..aeab15e 100644
+--- a/x.c
++++ b/x.c
+@@ -20,30 +20,8 @@ char *argv0;
+ #include "st.h"
+ #include "win.h"
+ 
+-/* types used in config.h */
+-typedef struct {
+-	uint mod;
+-	KeySym keysym;
+-	void (*func)(const Arg *);
+-	const Arg arg;
+-} Shortcut;
+-
+-typedef struct {
+-	uint mod;
+-	uint button;
+-	void (*func)(const Arg *);
+-	const Arg arg;
+-	uint  release;
+-} MouseShortcut;
+-
+-typedef struct {
+-	KeySym k;
+-	uint mask;
+-	char *s;
+-	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
+-	signed char appkey;    /* application keypad */
+-	signed char appcursor; /* application cursor */
+-} Key;
++#include <Imlib2.h>
++#include "sixel.h"
+ 
+ /* X modifiers */
+ #define XK_ANY_MOD    UINT_MAX
+@@ -73,73 +51,6 @@ static void ttysend(const Arg *);
+ #define TRUEGREEN(x)		(((x) & 0xff00))
+ #define TRUEBLUE(x)		(((x) & 0xff) << 8)
+ 
+-typedef XftDraw *Draw;
+-typedef XftColor Color;
+-typedef XftGlyphFontSpec GlyphFontSpec;
+-
+-/* Purely graphic info */
+-typedef struct {
+-	int tw, th; /* tty width and height */
+-	int w, h; /* window width and height */
+-	int ch; /* char height */
+-	int cw; /* char width  */
+-	int mode; /* window state/mode flags */
+-	int cursor; /* cursor style */
+-} TermWindow;
+-
+-typedef struct {
+-	Display *dpy;
+-	Colormap cmap;
+-	Window win;
+-	Drawable buf;
+-	GlyphFontSpec *specbuf; /* font spec buffer used for rendering */
+-	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
+-	struct {
+-		XIM xim;
+-		XIC xic;
+-		XPoint spot;
+-		XVaNestedList spotlist;
+-	} ime;
+-	Draw draw;
+-	Visual *vis;
+-	XSetWindowAttributes attrs;
+-	int scr;
+-	int isfixed; /* is fixed geometry? */
+-	int l, t; /* left and top offset */
+-	int gm; /* geometry mask */
+-} XWindow;
+-
+-typedef struct {
+-	Atom xtarget;
+-	char *primary, *clipboard;
+-	struct timespec tclick1;
+-	struct timespec tclick2;
+-} XSelection;
+-
+-/* Font structure */
+-#define Font Font_
+-typedef struct {
+-	int height;
+-	int width;
+-	int ascent;
+-	int descent;
+-	int badslant;
+-	int badweight;
+-	short lbearing;
+-	short rbearing;
+-	XftFont *match;
+-	FcFontSet *set;
+-	FcPattern *pattern;
+-} Font;
+-
+-/* Drawing Context */
+-typedef struct {
+-	Color *col;
+-	size_t collen;
+-	Font font, bfont, ifont, ibfont;
+-	GC gc;
+-} DC;
+-
+ static inline ushort sixd_to_16bit(int);
+ static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
+ static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
+@@ -216,10 +127,11 @@ static void (*handler[LASTEvent])(XEvent *) = {
+ };
+ 
+ /* Globals */
+-static DC dc;
+-static XWindow xw;
+-static XSelection xsel;
+-static TermWindow win;
++Term term;
++DC dc;
++XWindow xw;
++XSelection xsel;
++TermWindow win;
+ 
+ /* Font Ring Cache */
+ enum {
+@@ -279,6 +191,12 @@ clippaste(const Arg *dummy)
+ 			xw.win, CurrentTime);
+ }
+ 
++void
++numlock(const Arg *dummy)
++{
++	win.mode ^= MODE_NUMLOCK;
++}
++
+ void
+ selpaste(const Arg *dummy)
+ {
+@@ -287,9 +205,9 @@ selpaste(const Arg *dummy)
+ }
+ 
+ void
+-numlock(const Arg *dummy)
++ttysend(const Arg *arg)
+ {
+-	win.mode ^= MODE_NUMLOCK;
++	ttywrite(arg->s, strlen(arg->s), 1);
+ }
+ 
+ void
+@@ -298,14 +216,31 @@ zoom(const Arg *arg)
+ 	Arg larg;
+ 
+ 	larg.f = usedfontsize + arg->f;
+-	zoomabs(&larg);
++	if (larg.f >= 1.0)
++		zoomabs(&larg);
+ }
+ 
+ void
+ zoomabs(const Arg *arg)
+ {
++	int i;
++	ImageList *im;
++
+ 	xunloadfonts();
+ 	xloadfonts(usedfont, arg->f);
++
++	/* delete old pixmaps so that xfinishdraw() can create new scaled ones */
++	for (im = term.images, i = 0; i < 2; i++, im = term.images_alt) {
++		for (; im; im = im->next) {
++			if (im->pixmap)
++				XFreePixmap(xw.dpy, (Drawable)im->pixmap);
++			if (im->clipmask)
++				XFreePixmap(xw.dpy, (Drawable)im->clipmask);
++			im->pixmap = NULL;
++			im->clipmask = NULL;
++		}
++	}
++
+ 	cresize(0, 0);
+ 	redraw();
+ 	xhints();
+@@ -322,12 +257,6 @@ zoomreset(const Arg *arg)
+ 	}
+ }
+ 
+-void
+-ttysend(const Arg *arg)
+-{
+-	ttywrite(arg->s, strlen(arg->s), 1);
+-}
+-
+ int
+ evcol(XEvent *e)
+ {
+@@ -344,6 +273,40 @@ evrow(XEvent *e)
+ 	return y / win.ch;
+ }
+ 
++uint
++buttonmask(uint button)
++{
++	return button == Button1 ? Button1Mask
++		: button == Button2 ? Button2Mask
++		: button == Button3 ? Button3Mask
++		: button == Button4 ? Button4Mask
++		: button == Button5 ? Button5Mask
++		: 0;
++}
++
++int
++mouseaction(XEvent *e, uint release)
++{
++	MouseShortcut *ms;
++	int screen = tisaltscr() ? S_ALT : S_PRI;
++
++	/* ignore Button<N>mask for Button<N> - it's set on release */
++	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
++
++	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
++		if (ms->release == release &&
++				ms->button == e->xbutton.button &&
++				(!ms->screen || (ms->screen == screen)) &&
++				(match(ms->mod, state) ||  /* exact or forced */
++				 match(ms->mod, state & ~forcemousemod))) {
++			ms->func(&(ms->arg));
++			return 1;
++		}
++	}
++
++	return 0;
++}
++
+ void
+ mousesel(XEvent *e, int done)
+ {
+@@ -433,38 +396,6 @@ mousereport(XEvent *e)
+ 	ttywrite(buf, len, 0);
+ }
+ 
+-uint
+-buttonmask(uint button)
+-{
+-	return button == Button1 ? Button1Mask
+-	     : button == Button2 ? Button2Mask
+-	     : button == Button3 ? Button3Mask
+-	     : button == Button4 ? Button4Mask
+-	     : button == Button5 ? Button5Mask
+-	     : 0;
+-}
+-
+-int
+-mouseaction(XEvent *e, uint release)
+-{
+-	MouseShortcut *ms;
+-
+-	/* ignore Button<N>mask for Button<N> - it's set on release */
+-	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
+-
+-	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
+-		if (ms->release == release &&
+-		    ms->button == e->xbutton.button &&
+-		    (match(ms->mod, state) ||  /* exact or forced */
+-		     match(ms->mod, state & ~forcemousemod))) {
+-			ms->func(&(ms->arg));
+-			return 1;
+-		}
+-	}
+-
+-	return 0;
+-}
+-
+ void
+ bpress(XEvent *e)
+ {
+@@ -709,8 +640,11 @@ brelease(XEvent *e)
+ 
+ 	if (mouseaction(e, 1))
+ 		return;
+-	if (btn == Button1)
++
++	if (btn == Button1) { //vishnup TODO: What does this do?
+ 		mousesel(e, 1);
++	}
++
+ }
+ 
+ void
+@@ -736,7 +670,7 @@ cresize(int width, int height)
+ 
+ 	col = (win.w - 2 * borderpx) / win.cw;
+ 	row = (win.h - 2 * borderpx) / win.ch;
+-	col = MAX(1, col);
++	col = MAX(2, col); //vishnup TODO: Debug this?
+ 	row = MAX(1, row);
+ 
+ 	tresize(col, row);
+@@ -752,7 +686,7 @@ xresize(int col, int row)
+ 
+ 	XFreePixmap(xw.dpy, xw.buf);
+ 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
+-			DefaultDepth(xw.dpy, xw.scr));
++			xw.depth);
+ 	XftDrawChange(xw.draw, xw.buf);
+ 	xclear(0, 0, win.w, win.h);
+ 
+@@ -760,6 +694,24 @@ xresize(int col, int row)
+ 	xw.specbuf = xrealloc(xw.specbuf, col * sizeof(GlyphFontSpec));
+ }
+ 
++void
++fullscreen(const Arg *arg)
++{
++	XEvent ev;
++
++	memset(&ev, 0, sizeof(ev));
++	
++	ev.xclient.type = ClientMessage;
++	ev.xclient.message_type = xw.netwmstate;
++	ev.xclient.display = xw.dpy;
++	ev.xclient.window = xw.win;
++	ev.xclient.format = 32;
++	ev.xclient.data.l[0] = 2; /* _NET_WM_STATE_TOGGLE */
++	ev.xclient.data.l[1] = xw.netwmfullscreen;
++
++	XSendEvent(xw.dpy, DefaultRootWindow(xw.dpy), False, SubstructureNotifyMask|SubstructureRedirectMask, &ev);
++}
++
+ ushort
+ sixd_to_16bit(int x)
+ {
+@@ -812,6 +764,10 @@ xloadcols(void)
+ 			else
+ 				die("could not allocate color %d\n", i);
+ 		}
++
++	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
++	dc.col[defaultbg].pixel &= 0x00FFFFFF;
++	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
+ 	loaded = 1;
+ }
+ 
+@@ -842,6 +798,12 @@ xsetcolorname(int x, const char *name)
+ 	XftColorFree(xw.dpy, xw.vis, xw.cmap, &dc.col[x]);
+ 	dc.col[x] = ncolor;
+ 
++	if (x == defaultbg) {
++		dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
++		dc.col[defaultbg].pixel &= 0x00FFFFFF;
++		dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -856,6 +818,12 @@ xclear(int x1, int y1, int x2, int y2)
+ 			x1, y1, x2-x1, y2-y1);
+ }
+ 
++void
++xclearwin(void)
++{
++	xclear(0, 0, win.w, win.h);
++}
++
+ void
+ xhints(void)
+ {
+@@ -907,6 +875,60 @@ xgeommasktogravity(int mask)
+ 	return SouthEastGravity;
+ }
+ 
++int
++ximopen(Display *dpy)
++{
++	XIMCallback imdestroy = { .client_data = NULL, .callback = ximdestroy };
++	XICCallback icdestroy = { .client_data = NULL, .callback = xicdestroy };
++
++	xw.ime.xim = XOpenIM(xw.dpy, NULL, NULL, NULL);
++	if (xw.ime.xim == NULL)
++		return 0;
++
++	if (XSetIMValues(xw.ime.xim, XNDestroyCallback, &imdestroy, NULL))
++		fprintf(stderr, "XSetIMValues: "
++		                "Could not set XNDestroyCallback.\n");
++
++	xw.ime.spotlist = XVaCreateNestedList(0, XNSpotLocation, &xw.ime.spot,
++	                                      NULL);
++
++	if (xw.ime.xic == NULL) {
++		xw.ime.xic = XCreateIC(xw.ime.xim, XNInputStyle,
++		                       XIMPreeditNothing | XIMStatusNothing,
++		                       XNClientWindow, xw.win,
++		                       XNDestroyCallback, &icdestroy,
++		                       NULL);
++	}
++	if (xw.ime.xic == NULL)
++		fprintf(stderr, "XCreateIC: Could not create input context.\n");
++
++	return 1;
++}
++
++void
++ximinstantiate(Display *dpy, XPointer client, XPointer call)
++{
++	if (ximopen(dpy))
++		XUnregisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
++		                                 ximinstantiate, NULL);
++}
++
++void
++ximdestroy(XIM xim, XPointer client, XPointer call)
++{
++	xw.ime.xim = NULL;
++	XRegisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
++	                               ximinstantiate, NULL);
++	XFree(xw.ime.spotlist);
++}
++
++int
++xicdestroy(XIC xim, XPointer client, XPointer call)
++{
++	xw.ime.xic = NULL;
++	return 1;
++}
++
+ int
+ xloadfont(Font *f, FcPattern *pattern)
+ {
+@@ -1072,60 +1094,6 @@ xunloadfonts(void)
+ 	xunloadfont(&dc.ibfont);
+ }
+ 
+-int
+-ximopen(Display *dpy)
+-{
+-	XIMCallback imdestroy = { .client_data = NULL, .callback = ximdestroy };
+-	XICCallback icdestroy = { .client_data = NULL, .callback = xicdestroy };
+-
+-	xw.ime.xim = XOpenIM(xw.dpy, NULL, NULL, NULL);
+-	if (xw.ime.xim == NULL)
+-		return 0;
+-
+-	if (XSetIMValues(xw.ime.xim, XNDestroyCallback, &imdestroy, NULL))
+-		fprintf(stderr, "XSetIMValues: "
+-		                "Could not set XNDestroyCallback.\n");
+-
+-	xw.ime.spotlist = XVaCreateNestedList(0, XNSpotLocation, &xw.ime.spot,
+-	                                      NULL);
+-
+-	if (xw.ime.xic == NULL) {
+-		xw.ime.xic = XCreateIC(xw.ime.xim, XNInputStyle,
+-		                       XIMPreeditNothing | XIMStatusNothing,
+-		                       XNClientWindow, xw.win,
+-		                       XNDestroyCallback, &icdestroy,
+-		                       NULL);
+-	}
+-	if (xw.ime.xic == NULL)
+-		fprintf(stderr, "XCreateIC: Could not create input context.\n");
+-
+-	return 1;
+-}
+-
+-void
+-ximinstantiate(Display *dpy, XPointer client, XPointer call)
+-{
+-	if (ximopen(dpy))
+-		XUnregisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
+-		                                 ximinstantiate, NULL);
+-}
+-
+-void
+-ximdestroy(XIM xim, XPointer client, XPointer call)
+-{
+-	xw.ime.xim = NULL;
+-	XRegisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
+-	                               ximinstantiate, NULL);
+-	XFree(xw.ime.spotlist);
+-}
+-
+-int
+-xicdestroy(XIC xim, XPointer client, XPointer call)
+-{
+-	xw.ime.xic = NULL;
+-	return 1;
+-}
+-
+ void
+ xinit(int cols, int rows)
+ {
+@@ -1134,11 +1102,25 @@ xinit(int cols, int rows)
+ 	Window parent, root;
+ 	pid_t thispid = getpid();
+ 	XColor xmousefg, xmousebg;
++	XWindowAttributes attr;
++	XVisualInfo vis;
+ 
+ 	if (!(xw.dpy = XOpenDisplay(NULL)))
+ 		die("can't open display\n");
+ 	xw.scr = XDefaultScreen(xw.dpy);
+-	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
++
++	root = XRootWindow(xw.dpy, xw.scr);
++	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
++		parent = root;
++
++	if (XMatchVisualInfo(xw.dpy, xw.scr, 32, TrueColor, &vis) != 0) {
++		xw.vis = vis.visual;
++		xw.depth = vis.depth;
++	} else {
++		XGetWindowAttributes(xw.dpy, parent, &attr);
++		xw.vis = attr.visual;
++		xw.depth = attr.depth;
++	}
+ 
+ 	/* font */
+ 	if (!FcInit())
+@@ -1148,7 +1130,7 @@ xinit(int cols, int rows)
+ 	xloadfonts(usedfont, 0);
+ 
+ 	/* colors */
+-	xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
++	xw.cmap = XCreateColormap(xw.dpy, parent, xw.vis, None);
+ 	xloadcols();
+ 
+ 	/* adjust fixed window geometry */
+@@ -1168,11 +1150,8 @@ xinit(int cols, int rows)
+ 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
+ 	xw.attrs.colormap = xw.cmap;
+ 
+-	root = XRootWindow(xw.dpy, xw.scr);
+-	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
+-		parent = root;
+-	xw.win = XCreateWindow(xw.dpy, root, xw.l, xw.t,
+-			win.w, win.h, 0, XDefaultDepth(xw.dpy, xw.scr), InputOutput,
++	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
++			win.w, win.h, 0, xw.depth, InputOutput,
+ 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
+ 			| CWEventMask | CWColormap, &xw.attrs);
+ 	if (parent != root)
+@@ -1183,7 +1162,7 @@ xinit(int cols, int rows)
+ 	dc.gc = XCreateGC(xw.dpy, xw.win, GCGraphicsExposures,
+ 			&gcvalues);
+ 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
+-			DefaultDepth(xw.dpy, xw.scr));
++			xw.depth);
+ 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
+ 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
+ 
+@@ -1227,6 +1206,9 @@ xinit(int cols, int rows)
+ 	XChangeProperty(xw.dpy, xw.win, xw.netwmpid, XA_CARDINAL, 32,
+ 			PropModeReplace, (uchar *)&thispid, 1);
+ 
++	xw.netwmstate = XInternAtom(xw.dpy, "_NET_WM_STATE", False);
++	xw.netwmfullscreen = XInternAtom(xw.dpy, "_NET_WM_STATE_FULLSCREEN", False);
++
+ 	win.mode = MODE_NUMLOCK;
+ 	resettitle();
+ 	xhints();
+@@ -1249,7 +1231,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
+ 	ushort mode, prevmode = USHRT_MAX;
+ 	Font *font = &dc.font;
+ 	int frcflags = FRC_NORMAL;
+-	float runewidth = win.cw;
++	float runewidth = win.cw * ((glyphs[0].mode & ATTR_WIDE) ? 2.0f : 1.0f);
+ 	Rune rune;
+ 	FT_UInt glyphidx;
+ 	FcResult fcres;
+@@ -1378,8 +1360,8 @@ void
+ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y)
+ {
+ 	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
+-	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
+-	    width = charlen * win.cw;
++	int width = charlen * win.cw;
++	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch;
+ 	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
+ 	XRenderColor colfg, colbg;
+ 	XRectangle r;
+@@ -1513,10 +1495,10 @@ void
+ xdrawglyph(Glyph g, int x, int y)
+ {
+ 	int numspecs;
+-	XftGlyphFontSpec spec;
++	XftGlyphFontSpec *specs = xw.specbuf;
+ 
+-	numspecs = xmakeglyphfontspecs(&spec, &g, 1, x, y);
+-	xdrawglyphfontspecs(&spec, g, numspecs, x, y);
++	numspecs = xmakeglyphfontspecs(specs, &g, 1, x, y);
++	xdrawglyphfontspecs(specs, g, numspecs, x, y);
+ }
+ 
+ void
+@@ -1688,11 +1670,126 @@ xdrawline(Line line, int x1, int y1, int x2)
+ void
+ xfinishdraw(void)
+ {
+-	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w,
+-			win.h, 0, 0);
+-	XSetForeground(xw.dpy, dc.gc,
+-			dc.col[IS_SET(MODE_REVERSE)?
+-				defaultfg : defaultbg].pixel);
++	ImageList *im, *next;
++	Imlib_Image origin, scaled;
++	XGCValues gcvalues;
++	GC gc = NULL;
++	int width, height;
++	int del, desty, mode, x1, x2, xend;
++	int bw = borderpx, bh = borderpx;
++	Line line;
++
++	for (im = term.images; im; im = next) {
++		next = im->next;
++
++		/* do not draw or process the image, if it is not visible */
++		if (im->x >= term.col || im->y >= term.row || im->y < 0)
++			continue;
++
++		/* scale the image */
++		width = MAX(im->width * win.cw / im->cw, 1);
++		height = MAX(im->height * win.ch / im->ch, 1);
++		if (!im->pixmap) {
++			im->pixmap = (void *)XCreatePixmap(xw.dpy, xw.win, width, height,
++				xw.depth
++			);
++			if (!im->pixmap)
++				continue;
++			if (win.cw == im->cw && win.ch == im->ch) {
++				XImage ximage = {
++					.format = ZPixmap,
++					.data = (char *)im->pixels,
++					.width = im->width,
++					.height = im->height,
++					.xoffset = 0,
++					.byte_order = sixelbyteorder,
++					.bitmap_bit_order = MSBFirst,
++					.bits_per_pixel = 32,
++					.bytes_per_line = im->width * 4,
++					.bitmap_unit = 32,
++					.bitmap_pad = 32,
++					.depth = xw.depth
++				};
++				XPutImage(xw.dpy, (Drawable)im->pixmap, dc.gc, &ximage, 0, 0, 0, 0, width, height);
++				if (im->transparent)
++					im->clipmask = (void *)sixel_create_clipmask((char *)im->pixels, width, height);
++			} else {
++				origin = imlib_create_image_using_data(im->width, im->height, (DATA32 *)im->pixels);
++				if (!origin)
++					continue;
++				imlib_context_set_image(origin);
++				imlib_image_set_has_alpha(1);
++				imlib_context_set_anti_alias(im->transparent ? 0 : 1); /* anti-aliasing messes up the clip mask */
++				scaled = imlib_create_cropped_scaled_image(0, 0, im->width, im->height, width, height);
++				imlib_free_image_and_decache();
++				if (!scaled)
++					continue;
++				imlib_context_set_image(scaled);
++				imlib_image_set_has_alpha(1);
++				XImage ximage = {
++					.format = ZPixmap,
++					.data = (char *)imlib_image_get_data_for_reading_only(),
++					.width = width,
++					.height = height,
++					.xoffset = 0,
++					.byte_order = sixelbyteorder,
++					.bitmap_bit_order = MSBFirst,
++					.bits_per_pixel = 32,
++					.bytes_per_line = width * 4,
++					.bitmap_unit = 32,
++					.bitmap_pad = 32,
++					.depth = xw.depth
++				};
++				XPutImage(xw.dpy, (Drawable)im->pixmap, dc.gc, &ximage, 0, 0, 0, 0, width, height);
++				if (im->transparent)
++					im->clipmask = (void *)sixel_create_clipmask((char *)imlib_image_get_data_for_reading_only(), width, height);
++				imlib_free_image_and_decache();
++			}
++		}
++
++		/* create GC */
++		if (!gc) {
++			memset(&gcvalues, 0, sizeof(gcvalues));
++			gcvalues.graphics_exposures = False;
++			gc = XCreateGC(xw.dpy, xw.win, GCGraphicsExposures, &gcvalues);
++		}
++
++		/* set the clip mask */
++		desty = bh + im->y * win.ch;
++		if (im->clipmask) {
++			XSetClipMask(xw.dpy, gc, (Drawable)im->clipmask);
++			XSetClipOrigin(xw.dpy, gc, bw + im->x * win.cw, desty);
++		}
++
++		/* draw only the parts of the image that are not erased */
++		line = term.line[im->y] + im->x;
++		xend = MIN(im->x + im->cols, term.col);
++		for (del = 1, x1 = im->x; x1 < xend; x1 = x2) {
++			mode = line->mode & ATTR_SIXEL;
++			for (x2 = x1 + 1; x2 < xend; x2++) {
++				if (((++line)->mode & ATTR_SIXEL) != mode)
++					break;
++			}
++			if (mode) {
++				XCopyArea(xw.dpy, (Drawable)im->pixmap, xw.buf, gc,
++				    (x1 - im->x) * win.cw, 0,
++				    MIN((x2 - x1) * win.cw, width - (x1 - im->x) * win.cw), height,
++				    bw + x1 * win.cw, desty);
++				del = 0;
++			}
++		}
++		if (im->clipmask)
++			XSetClipMask(xw.dpy, gc, None);
++
++		/* if all the parts are erased, we can delete the entire image */
++		if (del && im->x + im->cols <= term.col)
++			delete_image(im);
++	}
++	if (gc)
++		XFreeGC(xw.dpy, gc);
++
++	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w, win.h, 0, 0);
++	XSetForeground(xw.dpy, dc.gc, dc.col[IS_SET(MODE_REVERSE) ? defaultfg : defaultbg].pixel);
+ }
+ 
+ void
+@@ -1844,7 +1941,7 @@ kpress(XEvent *ev)
+ 	XKeyEvent *e = &ev->xkey;
+ 	KeySym ksym = NoSymbol;
+ 	char buf[64], *customkey;
+-	int len;
++	int len, screen;
+ 	Rune c;
+ 	Status status;
+ 	Shortcut *bp;
+@@ -1859,9 +1956,13 @@ kpress(XEvent *ev)
+ 	} else {
+ 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
+ 	}
++
++	screen = tisaltscr() ? S_ALT : S_PRI;
++
+ 	/* 1. shortcuts */
+ 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
+-		if (ksym == bp->keysym && match(bp->mod, e->state)) {
++		if (ksym == bp->keysym && match(bp->mod, e->state) &&
++				(!bp->screen || bp->screen == screen)) {
+ 			bp->func(&(bp->arg));
+ 			return;
+ 		}
+@@ -2047,6 +2148,10 @@ main(int argc, char *argv[])
+ 	case 'a':
+ 		allowaltscreen = 0;
+ 		break;
++	case 'A':
++		alpha = strtof(EARGF(usage()), NULL);
++		LIMIT(alpha, 0.0, 1.0);
++		break;
+ 	case 'c':
+ 		opt_class = EARGF(usage());
+ 		break;
