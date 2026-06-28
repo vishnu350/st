@@ -22,6 +22,3 @@ index 0422421..904e1dc 100644
  	if (IS_SET(MODE_REVERSE)) {
  		if (fg == &dc.col[defaultfg]) {
  			fg = &dc.col[defaultbg];
--- 
-2.20.1
-
