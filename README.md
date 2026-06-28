@@ -59,7 +59,7 @@ Notes on AppImage install flow:
 
 You will need the following packages (Debian example below):
 
-    sudo apt install build-essential libxft-dev pkg-config wget python3-nautilus
+    sudo apt install build-essential libxft-dev libimlib2 pkg-config wget python3-nautilus
 
 To avoid conflicts, the default nautilus open terminal extension should be removed if installed:
 
