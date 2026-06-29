@@ -1400,7 +1400,7 @@ index 6f40e35..32e030a 100644
  		tswapscreen();
  	}
  }
-@@ -1050,21 +1067,68 @@ void
+@@ -1050,21 +1067,70 @@ void
  tswapscreen(void)
  {
  	Line *tmp = term.line;
@@ -1428,6 +1428,7 @@ index 6f40e35..32e030a 100644
 +
 +	if (term.scr > 0) {
 +		term.scr -= n;
++		tdeleteimages();
 +		selscroll(0, -n);
 +		tfulldirt();
 +	}
@@ -1443,6 +1444,7 @@ index 6f40e35..32e030a 100644
 +
 +	if (term.scr <= HISTSIZE-n) {
 +		term.scr += n;
++		tdeleteimages();
 +		selscroll(0, n);
 +		tfulldirt();
 +	}
