@@ -4,7 +4,7 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
 
-Simple Terminal+ is a beautiful yet lightweight terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
+Simple Terminal+ is a beautiful yet lightweight Linux terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim).
@@ -102,7 +102,7 @@ For the nautilus extension to work make sure to install `python3-nautilus`, but 
 # Contribute
 
 Like this project?
-- Please ⭐️ this repository or follow the devs if this project helped you.
+- Please ⭐️ this repository and follow the devs if this project helped you.
 - Buy the suckless.org team a cup of [coffee](https://suckless.org/donations/).
 
 Credits to the following folk:
