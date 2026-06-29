@@ -4,7 +4,7 @@
 
 include config.mk
 
-SRC = st.c x.c
+SRC = st.c x.c sixel.c sixel_hls.c
 OBJ = $(SRC:.c=.o)
 
 all: st
@@ -25,7 +25,7 @@ st: $(OBJ)
 	strip st+
 
 clean:
-	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h
+	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h sixel*
 
 dist: patch
 	mkdir -p st-$(VERSION)
