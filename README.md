@@ -4,7 +4,7 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
 
-Simple Terminal+ is a beautiful yet lightweight Linux terminal (~100KB) with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
+Simple Terminal+ is a beautiful, lightweight (~100KB), SIXEL-capable terminal with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim).
@@ -112,4 +112,5 @@ Credits to the following folk:
 - The Gogh-Co team for the best looking color schemes out there: https://gogh-co.github.io/Gogh
 - Ivan's portable2appimage script: https://github.com/ivan-hc/portable2appimage
 - Open terminal python script adapted from Tilix: https://github.com/gnunn1/tilix
+- Original [SIXEL patch](https://gist.github.com/saitoha/70e0fdf22e3e8f63ce937c7f7da71809) for st from Hayaki Saito, now very outdated.
 - Original simple terminal source code is based on Aurélien Aptel's 'bt'.
