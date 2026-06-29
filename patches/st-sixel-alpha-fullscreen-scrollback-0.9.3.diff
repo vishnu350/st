@@ -1456,7 +1456,7 @@ index 6f40e35..32e030a 100644
  	int i;
  	Line temp;
 +	int bot = term.bot;
-+	int scr = 0;
++	int scr = term.scr; //vishnup TODO: Original was 0?
 +	int itop = orig + scr, ibot = bot + scr;
 +	ImageList *im, *next;
  
@@ -1498,7 +1498,7 @@ index 6f40e35..32e030a 100644
  	int i;
  	Line temp;
 +	int bot = term.bot;
-+	int scr = 0;
++	int scr = term.scr; //vishnup TODO: Original was 0?
 +	int itop = orig + scr, ibot = bot + scr;
 +	ImageList *im, *next;
  
@@ -2070,7 +2070,7 @@ index 6f40e35..32e030a 100644
 +		tsetscroll(0, term.row - 1);
 +		for (i = 0; i < 2; i++) {
 +			if (term.c.y >= row) {
-+				tscrollup(0, term.c.y - row + 1, 1); //vishnup TODO: 1 or 0?
++				tscrollup(0, term.c.y - row + 1, 1);
 +			}
 +			for (j = row; j < term.row; j++)
 +				free(term.line[j]);
@@ -2718,28 +2718,6 @@ index d73152b..aeab15e 100644
  void
  bpress(XEvent *e)
  {
-@@ -709,8 +640,11 @@ brelease(XEvent *e)
- 
- 	if (mouseaction(e, 1))
- 		return;
--	if (btn == Button1)
-+
-+	if (btn == Button1) { //vishnup TODO: What does this do?
- 		mousesel(e, 1);
-+	}
-+
- }
- 
- void
-@@ -736,7 +670,7 @@ cresize(int width, int height)
- 
- 	col = (win.w - 2 * borderpx) / win.cw;
- 	row = (win.h - 2 * borderpx) / win.ch;
--	col = MAX(1, col);
-+	col = MAX(2, col); //vishnup TODO: Debug this?
- 	row = MAX(1, row);
- 
- 	tresize(col, row);
 @@ -752,7 +686,7 @@ xresize(int col, int row)
  
  	XFreePixmap(xw.dpy, xw.buf);
