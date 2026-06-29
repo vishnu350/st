@@ -20,6 +20,7 @@ This is a fork of [st](https://st.suckless.org) that bundles a curated set of pa
 - Blinking cursor (square box).
 - One clipboard (better cut/paste).
 - Fullscreen support (F11/Alt-Enter).
+- Bold-is-not-bright patch (accurate bold colors)
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
