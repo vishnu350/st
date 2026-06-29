@@ -24,7 +24,7 @@ This is a fork of [st](https://st.suckless.org) that bundles a curated set of pa
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
-If you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that supports SIXEL and other essential features, then st+ is for you.
+If you are a heavy tmux user, and you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that supports SIXEL and other essential features, then st+ is for you.
 
 
 # Benchmarking
