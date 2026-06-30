@@ -31,7 +31,7 @@ imlib2:
 clean:
 	rm -rf st+ st+.1 $(OBJ) st*.tar.gz st-$(VERSION)* release st+-workdir.tmp *.orig *.rej config.h sixel*
 
-dist: patch imlib2 st
+dist: imlib2 st
 	mkdir -p st-$(VERSION)
 	cp -R FAQ LEGACY TODO LICENSE Makefile README.md config.mk\
 		config.def.h st.info st.1 arg.h st.h win.h $(SRC)\
@@ -46,7 +46,7 @@ dist: patch imlib2 st
 	mv st*.AppImage.zsync release/st+-$(VERSION)-$(ARCH).AppImage.zsync
 	mv st+-$(VERSION).tar.gz release/st+-$(VERSION)-source.tar.gz
 
-install: patch st
+install: st
 	@./st-config install
 
 uninstall:

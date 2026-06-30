@@ -4,7 +4,7 @@
 
 Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
 
-Simple Terminal+ is a beautiful, lightweight (~100KB), SIXEL-capable terminal with essential features and rock-solid stability for daily use. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
+Simple Terminal+ is a beautiful, SIXEL-capable, lightweight terminal (~100KB) with just-enough essential features for rock-solid stability in daily usage. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
 - **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim).
@@ -24,7 +24,7 @@ This is a fork of [st](https://st.suckless.org) that bundles a curated set of pa
 - AppImage version will work even on 10 year old distros.
 - Easy AppImage install flow via AM: `am i st+`
 
-If you are a heavy tmux user, and you just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that supports SIXEL and other essential features, then st+ is for you.
+If you are a heavy tmux user and just want an AppImage of a fast, minimal, lightweight, rock-solid terminal that supports SIXEL and other essential features, then st+ is for you.
 
 
 # Benchmarking
@@ -70,10 +70,11 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 To compile and install st+ (needs root, flags can be combined):
 
     git clone https://github.com/vishnu350/st && cd st
-    make install                                      ## Standard install
-    make install SYSICON=1                            ## Desktop shortcut will use system icon
-    make install CFLAGS="-O3 -march=native -flto"     ## Optimize for highest performance
-    make install CFLAGS="-Os -march=native -flto"     ## Optimize for size (~85KB)
+    make patch                                      ## Apply ST+ patches first
+    make install                                    ## Standard install (no optimizations)
+    make install CFLAGS="-O3 -march=native -flto"   ## Optimize for highest performance
+    make install CFLAGS="-Os -march=native -flto"   ## Optimize for size (~90KB)
+    make install SYSICON=1                          ## Desktop shortcut will use system icon
 
 To set color schemes or download more fonts, run the st-config tool:
 
@@ -81,6 +82,7 @@ To set color schemes or download more fonts, run the st-config tool:
 
 **Only for release**: To build AppImage and static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
+    make patch
     make dist STATIC=1 CFLAGS="-O3 -flto"
 
 Notes on manual install flow:
