@@ -22,6 +22,7 @@ $(OBJ): config.h config.mk
 
 st: $(OBJ)
 ifeq ($(STATIC),1)
+	git submodule update --init
 	cd imlib2 && ./autogen.sh with_x=no && make
 endif
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
