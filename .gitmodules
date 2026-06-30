@@ -1,0 +1,3 @@
+[submodule "imlib2"]
+	path = imlib2
+	url = https://github.com/vishnu350/imlib2
