@@ -1,5 +1,5 @@
 # st version
-VERSION = 0.9.3-25
+VERSION = 0.9.3-26
 ARCH = $(shell uname -m)
 
 # Customize below to fit your system
