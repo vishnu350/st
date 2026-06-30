@@ -1,7 +1,6 @@
 # st version
 VERSION = 0.9.3-25
 ARCH = $(shell uname -m)
-STATIC ?= 0
 
 # Customize below to fit your system
 X11INC = /usr/X11R6/include
@@ -10,7 +9,7 @@ PKG_CONFIG = pkg-config
 
 # includes and libs
 INCS = -I$(X11INC) `$(PKG_CONFIG) --cflags x11 xft fontconfig freetype2`
-ifeq ($(STATIC),0)
+ifndef STATIC
 # Default dynamically linked library
 LIBS = -lm -lutil `$(PKG_CONFIG) --libs x11 xft fontconfig freetype2 imlib2`
 else
