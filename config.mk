@@ -16,8 +16,8 @@ LIBS = -lm -lutil `$(PKG_CONFIG) --libs x11 xft fontconfig freetype2 imlib2`
 else
 # Customized library order for static linking (all except system libs), use st-build container
 LIBS = -static-libgcc \
-       -Wl,-Bstatic -lpng16 -lexpat -lz \
-       -Wl,-Bdynamic -lm -lutil -lfreetype -lfontconfig -lX11 -lXft -lImlib2
+       -Wl,-Bstatic -lpng16 -lexpat -lz ./imlib2/src/lib/.libs/libImlib2.a \
+       -Wl,-Bdynamic -lm -ldl -lutil -lfreetype -lfontconfig -lX11 -lXft
 endif
 
 # flags

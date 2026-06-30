@@ -21,6 +21,9 @@ x.o: arg.h config.h st.h win.h
 $(OBJ): config.h config.mk
 
 st: $(OBJ)
+ifeq ($(STATIC),1)
+	cd imlib2 && ./autogen.sh with_x=no && make
+endif
 	$(CC) -o st+ $(OBJ) $(STLDFLAGS)
 	strip st+
 
