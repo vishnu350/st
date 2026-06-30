@@ -67,14 +67,18 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 
     sudo apt remove nautilus-extension-gnome-terminal
 
-To compile and install st+ (needs root, flags can be combined):
+To compile and install st+ (needs root):
 
     git clone https://github.com/vishnu350/st && cd st
-    make patch                                      ## Apply ST+ patches first
-    make install                                    ## Standard install (no optimizations)
-    make install CFLAGS="-O3 -march=native -flto"   ## Optimize for highest performance
-    make install CFLAGS="-Os -march=native -flto"   ## Optimize for size (~90KB)
-    make install SYSICON=1                          ## Desktop shortcut will use system icon
+    make patch                                       ## Apply ST+ patches first
+    make install CFLAGS="-O3 -march=native -flto"    ## Optimize for highest performance
+
+Other build options:
+
+    make patch SYSICON=1                             ## Desktop shortcut uses system icon
+    make install                                     ## Standard install (no optimizations)
+    make install CFLAGS="-Os -march=native -flto"    ## Optimize for size (~90KB)
+    make libim2 CFLAGS="-O3 -march=native -flto"     ## Build imlib2 submodule
 
 To set color schemes or download more fonts, run the st-config tool:
 
@@ -82,7 +86,7 @@ To set color schemes or download more fonts, run the st-config tool:
 
 **Only for release**: To build AppImage and static binaries for distribution/release, run the following command from within an old container (st-build.dockerfile):
 
-    make patch
+    make patch STATIC=1
     make dist STATIC=1 CFLAGS="-O3 -flto"
 
 Notes on manual install flow:
