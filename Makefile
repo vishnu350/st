@@ -4,7 +4,7 @@
 
 include config.mk
 
-SRC = st.c x.c sixel.c sixel_hls.c
+SRC = st.c x.c sixel.c
 OBJ = $(SRC:.c=.o)
 
 all: st

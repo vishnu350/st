@@ -37,10 +37,10 @@ index 2cd740a..715c83a 100644
  /*
 diff --git a/sixel.c b/sixel.c
 new file mode 100644
-index 0000000..fef2442
+index 0000000..c39ebfa
 --- /dev/null
 +++ b/sixel.c
-@@ -0,0 +1,690 @@
+@@ -0,0 +1,772 @@
 +// sixel.c (part of mintty)
 +// originally written by kmiya@cluti (https://github.com/saitoha/sixel/blob/master/fromsixel.c)
 +// Licensed under the terms of the GNU General Public License v3 or later.
@@ -51,7 +51,6 @@ index 0000000..fef2442
 +#include "st.h"
 +#include "win.h"
 +#include "sixel.h"
-+#include "sixel_hls.h"
 +
 +#define SIXEL_RGB(r, g, b) ((255 << 24) + ((r) << 16) + ((g) << 8) +  (b))
 +#define SIXEL_PALVAL(n,a,m) (((n) * (a) + ((m) / 2)) / (m))
@@ -79,7 +78,7 @@ index 0000000..fef2442
 +void
 +scroll_images(int n) {
 +	ImageList *im, *next;
-+	int top = 0;
++	int top = 0; //vishnup TODO: -HISTSIZE here?
 +
 +	for (im = term.images; im; im = next) {
 +		next = im->next;
@@ -109,6 +108,88 @@ index 0000000..fef2442
 +		XFreePixmap(xw.dpy, (Drawable)im->clipmask);
 +	free(im->pixels);
 +	free(im);
++}
++
++int
++hls_to_rgb(int hue, int lum, int sat)
++{
++	double hs = (hue + 240) % 360;
++	double hv = hs / 360.0;
++	double lv = lum / 100.0;
++	double sv = sat / 100.0;
++	double c, x, m, c2;
++	double r1, g1, b1;
++	int r, g, b;
++	int hpi;
++
++	if (sat == 0) {
++		r = g = b = lum * 255 / 100;
++		return SIXEL_RGB(r, g, b);
++	}
++
++	if ((c2 = ((2.0 * lv) - 1.0)) < 0.0) {
++		c2 = -c2;
++	}
++	c = (1.0 - c2) * sv;
++	hpi = (int) (hv * 6.0);
++	x = (hpi & 1) ? c : 0.0;
++	m = lv - 0.5 * c;
++
++	switch (hpi) {
++		case 0:
++			r1 = c;
++			g1 = x;
++			b1 = 0.0;
++			break;
++		case 1:
++			r1 = x;
++			g1 = c;
++			b1 = 0.0;
++			break;
++		case 2:
++			r1 = 0.0;
++			g1 = c;
++			b1 = x;
++			break;
++		case 3:
++			r1 = 0.0;
++			g1 = x;
++			b1 = c;
++			break;
++		case 4:
++			r1 = x;
++			g1 = 0.0;
++			b1 = c;
++			break;
++		case 5:
++			r1 = c;
++			g1 = 0.0;
++			b1 = x;
++			break;
++		default:
++			return SIXEL_RGB(255, 255, 255);
++	}
++
++	r = (int) ((r1 + m) * 100.0 + 0.5);
++	g = (int) ((g1 + m) * 100.0 + 0.5);
++	b = (int) ((b1 + m) * 100.0 + 0.5);
++
++	if (r < 0) {
++		r = 0;
++	} else if (r > 100) {
++		r = 100;
++	}
++	if (g < 0) {
++		g = 0;
++	} else if (g > 100) {
++		g = 100;
++	}
++	if (b < 0) {
++		b = 0;
++	} else if (b > 100) {
++		b = 100;
++	}
++	return SIXEL_RGB(r * 255 / 100, g * 255 / 100, b * 255 / 100);
 +}
 +
 +static int
@@ -731,12 +812,13 @@ index 0000000..fef2442
 +	free(clipdata);
 +	return clipmask;
 +}
++
 diff --git a/sixel.h b/sixel.h
 new file mode 100644
-index 0000000..7d14f8a
+index 0000000..ba48212
 --- /dev/null
 +++ b/sixel.h
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,64 @@
 +#ifndef SIXEL_H
 +#define SIXEL_H
 +
@@ -792,6 +874,7 @@ index 0000000..7d14f8a
 +
 +void scroll_images(int n);
 +void delete_image(ImageList *im);
++int hls_to_rgb(int hue, int lum, int sat);
 +int sixel_parser_init(sixel_state_t *st, int transparent, sixel_color_t fgcolor, sixel_color_t bgcolor, unsigned char use_private_register, int cell_width, int cell_height);
 +int sixel_parser_parse(sixel_state_t *st, const unsigned char *p, size_t len);
 +int sixel_parser_set_default_color(sixel_state_t *st);
@@ -800,142 +883,8 @@ index 0000000..7d14f8a
 +Pixmap sixel_create_clipmask(char *pixels, int width, int height);
 +
 +#endif
-diff --git a/sixel_hls.c b/sixel_hls.c
-new file mode 100644
-index 0000000..c88241c
---- /dev/null
-+++ b/sixel_hls.c
-@@ -0,0 +1,115 @@
-+// sixel.c (part of mintty)
-+// this function is derived from a part of graphics.c
-+// in Xterm pl#310 originally written by Ross Combs.
-+//
-+// Copyright 2013,2014 by Ross Combs
-+//
-+//                         All Rights Reserved
-+//
-+// Permission is hereby granted, free of charge, to any person obtaining a
-+// copy of this software and associated documentation files (the
-+// "Software"), to deal in the Software without restriction, including
-+// without limitation the rights to use, copy, modify, merge, publish,
-+// distribute, sublicense, and/or sell copies of the Software, and to
-+// permit persons to whom the Software is furnished to do so, subject to
-+// the following conditions:
-+//
-+// The above copyright notice and this permission notice shall be included
-+// in all copies or substantial portions of the Software.
-+//
-+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-+// IN NO EVENT SHALL THE ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
-+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-+//
-+// Except as contained in this notice, the name(s) of the above copyright
-+// holders shall not be used in advertising or otherwise to promote the
-+// sale, use or other dealings in this Software without prior written
-+// authorization.
-+
-+#define SIXEL_RGB(r, g, b) ((r) + ((g) << 8) + ((b) << 16) + (255 << 24))
-+
-+int
-+hls_to_rgb(int hue, int lum, int sat)
-+{
-+  double hs = (hue + 240) % 360;
-+  double hv = hs / 360.0;
-+  double lv = lum / 100.0;
-+  double sv = sat / 100.0;
-+  double c, x, m, c2;
-+  double r1, g1, b1;
-+  int r, g, b;
-+  int hpi;
-+
-+  if (sat == 0) {
-+    r = g = b = lum * 255 / 100;
-+    return SIXEL_RGB(r, g, b);
-+  }
-+
-+  if ((c2 = ((2.0 * lv) - 1.0)) < 0.0) {
-+    c2 = -c2;
-+  }
-+  c = (1.0 - c2) * sv;
-+  hpi = (int) (hv * 6.0);
-+  x = (hpi & 1) ? c : 0.0;
-+  m = lv - 0.5 * c;
-+
-+  switch (hpi) {
-+  case 0:
-+    r1 = c;
-+    g1 = x;
-+    b1 = 0.0;
-+    break;
-+  case 1:
-+    r1 = x;
-+    g1 = c;
-+    b1 = 0.0;
-+    break;
-+  case 2:
-+    r1 = 0.0;
-+    g1 = c;
-+    b1 = x;
-+    break;
-+  case 3:
-+    r1 = 0.0;
-+    g1 = x;
-+    b1 = c;
-+    break;
-+  case 4:
-+    r1 = x;
-+    g1 = 0.0;
-+    b1 = c;
-+    break;
-+  case 5:
-+    r1 = c;
-+    g1 = 0.0;
-+    b1 = x;
-+    break;
-+  default:
-+    return SIXEL_RGB(255, 255, 255);
-+  }
-+
-+  r = (int) ((r1 + m) * 100.0 + 0.5);
-+  g = (int) ((g1 + m) * 100.0 + 0.5);
-+  b = (int) ((b1 + m) * 100.0 + 0.5);
-+
-+  if (r < 0) {
-+    r = 0;
-+  } else if (r > 100) {
-+    r = 100;
-+  }
-+  if (g < 0) {
-+    g = 0;
-+  } else if (g > 100) {
-+    g = 100;
-+  }
-+  if (b < 0) {
-+    b = 0;
-+  } else if (b > 100) {
-+    b = 100;
-+  }
-+  return SIXEL_RGB(r * 255 / 100, g * 255 / 100, b * 255 / 100);
-+}
-diff --git a/sixel_hls.h b/sixel_hls.h
-new file mode 100644
-index 0000000..6176589
---- /dev/null
-+++ b/sixel_hls.h
-@@ -0,0 +1,7 @@
-+/*
-+ * Primary color hues:
-+ *  blue:  0 degrees
-+ *  red:   120 degrees
-+ *  green: 240 degrees
-+ */
-+int hls_to_rgb(int hue, int lum, int sat);
 diff --git a/st.c b/st.c
-index 6f40e35..32e030a 100644
+index 6f40e35..0efc253 100644
 --- a/st.c
 +++ b/st.c
 @@ -14,11 +14,13 @@
@@ -1359,7 +1308,7 @@ index 6f40e35..32e030a 100644
  		tswapscreen();
  	}
  }
-@@ -1050,21 +1067,70 @@ void
+@@ -1050,21 +1067,67 @@ void
  tswapscreen(void)
  {
  	Line *tmp = term.line;
@@ -1387,7 +1336,7 @@ index 6f40e35..32e030a 100644
 +
 +	if (term.scr > 0) {
 +		term.scr -= n;
-+		tdeleteimages();
++		tdeleteimages(); //vishnup TODO: Use scroll_images(-n)
 +		selscroll(0, -n);
 +		tfulldirt();
 +	}
@@ -1403,7 +1352,7 @@ index 6f40e35..32e030a 100644
 +
 +	if (term.scr <= HISTSIZE-n) {
 +		term.scr += n;
-+		tdeleteimages();
++		tdeleteimages(); //vishnup TODO: Use scroll_images(n)
 +		selscroll(0, n);
 +		tfulldirt();
 +	}
@@ -1414,10 +1363,6 @@ index 6f40e35..32e030a 100644
  {
  	int i;
  	Line temp;
-+	int bot = term.bot;
-+	int scr = term.scr; //vishnup TODO: Original was 0?
-+	int itop = orig + scr, ibot = bot + scr;
-+	ImageList *im, *next;
  
  	LIMIT(n, 0, term.bot-orig+1);
  
@@ -1428,24 +1373,15 @@ index 6f40e35..32e030a 100644
 +		term.line[term.bot] = temp;
 +	}
 +
++	scroll_images(n);
  	tsetdirt(orig, term.bot-n);
  	tclearregion(0, term.bot-n+1, term.col-1, term.bot);
  
-@@ -1074,17 +1138,42 @@ tscrolldown(int orig, int n)
+@@ -1074,17 +1137,29 @@ tscrolldown(int orig, int n)
  		term.line[i-n] = temp;
  	}
  
 -	selscroll(orig, n);
-+	/* move images, if they are inside the scrolling region */
-+	for (im = term.images; im; im = next) {
-+		next = im->next;
-+		if (im->y >= itop && im->y <= ibot) {
-+			im->y += n;
-+			if (im->y > ibot)
-+				delete_image(im);
-+		}
-+	}
-+
 +	if (term.scr == 0)
 +		selscroll(orig, n);
  }
@@ -1456,10 +1392,6 @@ index 6f40e35..32e030a 100644
  {
  	int i;
  	Line temp;
-+	int bot = term.bot;
-+	int scr = term.scr; //vishnup TODO: Original was 0?
-+	int itop = orig + scr, ibot = bot + scr;
-+	ImageList *im, *next;
  
  	LIMIT(n, 0, term.bot-orig+1);
  
@@ -1473,30 +1405,21 @@ index 6f40e35..32e030a 100644
 +	if (term.scr > 0 && term.scr < HISTSIZE)
 +		term.scr = MIN(term.scr + n, HISTSIZE-1);
 +
++	scroll_images(-n);
  	tclearregion(0, orig, term.col-1, orig+n-1);
  	tsetdirt(orig+n, term.bot);
  
-@@ -1094,7 +1183,18 @@ tscrollup(int orig, int n)
+@@ -1094,7 +1169,8 @@ tscrollup(int orig, int n)
  		term.line[i+n] = temp;
  	}
  
 -	selscroll(orig, -n);
-+	/* move images, if they are inside the scrolling region */
-+	for (im = term.images; im; im = next) {
-+		next = im->next;
-+		if (im->y >= itop && im->y <= ibot) {
-+			im->y -= n;
-+			if (im->y < itop)
-+				delete_image(im);
-+		}
-+	}
-+
 +	if (term.scr == 0)
 +		selscroll(orig, -n);
  }
  
  void
-@@ -1123,7 +1223,7 @@ tnewline(int first_col)
+@@ -1123,7 +1199,7 @@ tnewline(int first_col)
  	int y = term.c.y;
  
  	if (y == term.bot) {
@@ -1505,7 +1428,7 @@ index 6f40e35..32e030a 100644
  	} else {
  		y++;
  	}
-@@ -1291,14 +1391,25 @@ void
+@@ -1291,14 +1367,25 @@ void
  tinsertblankline(int n)
  {
  	if (BETWEEN(term.c.y, term.top, term.bot))
@@ -1533,7 +1456,7 @@ index 6f40e35..32e030a 100644
  }
  
  int32_t
-@@ -1573,6 +1684,12 @@ tsetmode(int priv, int set, const int *args, int narg)
+@@ -1573,6 +1660,12 @@ tsetmode(int priv, int set, const int *args, int narg)
  				      and can be mistaken for other control
  				      codes. */
  				break;
@@ -1546,7 +1469,7 @@ index 6f40e35..32e030a 100644
  			default:
  				fprintf(stderr,
  					"erresc: unknown private set/reset mode %d\n",
-@@ -1609,7 +1726,10 @@ void
+@@ -1609,7 +1702,10 @@ void
  csihandle(void)
  {
  	char buf[40];
@@ -1558,7 +1481,7 @@ index 6f40e35..32e030a 100644
  
  	switch (csiescseq.mode[0]) {
  	default:
-@@ -1707,19 +1827,30 @@ csihandle(void)
+@@ -1707,19 +1803,30 @@ csihandle(void)
  	case 'J': /* ED -- Clear screen */
  		switch (csiescseq.arg[0]) {
  		case 0: /* below */
@@ -1597,7 +1520,7 @@ index 6f40e35..32e030a 100644
  			break;
  		default:
  			goto unknown;
-@@ -1728,25 +1859,49 @@ csihandle(void)
+@@ -1728,25 +1835,49 @@ csihandle(void)
  	case 'K': /* EL -- Clear line */
  		switch (csiescseq.arg[0]) {
  		case 0: /* right */
@@ -1654,7 +1577,7 @@ index 6f40e35..32e030a 100644
  		break;
  	case 'L': /* IL -- Insert <n> blank lines */
  		DEFAULT(csiescseq.arg[0], 1);
-@@ -1809,6 +1964,27 @@ csihandle(void)
+@@ -1809,6 +1940,27 @@ csihandle(void)
  	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
  		tcursor(CURSOR_SAVE);
  		break;
@@ -1682,7 +1605,7 @@ index 6f40e35..32e030a 100644
  	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
  		if (csiescseq.priv) {
  			goto unknown;
-@@ -1873,8 +2049,8 @@ osc_color_response(int num, int index, int is_osc4)
+@@ -1873,8 +2025,8 @@ osc_color_response(int num, int index, int is_osc4)
  		return;
  	}
  
@@ -1693,7 +1616,7 @@ index 6f40e35..32e030a 100644
  	if (n < 0 || n >= sizeof(buf)) {
  		fprintf(stderr, "error: %s while printing %s response\n",
  		        n < 0 ? "snprintf failed" : "truncation occurred",
-@@ -1894,6 +2070,11 @@ strhandle(void)
+@@ -1894,6 +2046,11 @@ strhandle(void)
  		{ defaultbg, "background" },
  		{ defaultcs, "cursor" }
  	};
@@ -1705,7 +1628,7 @@ index 6f40e35..32e030a 100644
  
  	term.esc &= ~(ESC_STR_END|ESC_STR);
  	strparse();
-@@ -1927,6 +2108,8 @@ strhandle(void)
+@@ -1927,6 +2084,8 @@ strhandle(void)
  				}
  			}
  			return;
@@ -1714,7 +1637,7 @@ index 6f40e35..32e030a 100644
  		case 10: /* set dynamic VT100 text foreground color */
  		case 11: /* set dynamic VT100 text background color */
  		case 12: /* set dynamic text cursor color */
-@@ -1989,6 +2172,95 @@ strhandle(void)
+@@ -1989,6 +2148,95 @@ strhandle(void)
  		xsettitle(strescseq.args[0]);
  		return;
  	case 'P': /* DCS -- Device Control String */
@@ -1810,7 +1733,7 @@ index 6f40e35..32e030a 100644
  	case '_': /* APC -- Application Program Command */
  	case '^': /* PM -- Privacy Message */
  		return;
-@@ -2010,6 +2282,16 @@ strparse(void)
+@@ -2010,6 +2258,16 @@ strparse(void)
  	if (*p == '\0')
  		return;
  
@@ -1827,7 +1750,7 @@ index 6f40e35..32e030a 100644
  	while (strescseq.narg < STR_ARG_SIZ) {
  		strescseq.args[strescseq.narg++] = p;
  		while ((c = *p) != ';' && c != '\0')
-@@ -2044,7 +2326,7 @@ strdump(void)
+@@ -2044,7 +2302,7 @@ strdump(void)
  			fprintf(stderr, "(%02x)", c);
  		}
  	}
@@ -1836,7 +1759,7 @@ index 6f40e35..32e030a 100644
  }
  
  void
-@@ -2182,9 +2464,12 @@ tdectest(char c)
+@@ -2182,9 +2440,12 @@ tdectest(char c)
  void
  tstrsequence(uchar c)
  {
@@ -1849,7 +1772,7 @@ index 6f40e35..32e030a 100644
  		break;
  	case 0x9f:   /* APC -- Application Program Command */
  		c = '_';
-@@ -2196,7 +2481,6 @@ tstrsequence(uchar c)
+@@ -2196,7 +2457,6 @@ tstrsequence(uchar c)
  		c = ']';
  		break;
  	}
@@ -1857,7 +1780,7 @@ index 6f40e35..32e030a 100644
  	strescseq.type = c;
  	term.esc |= ESC_STR;
  }
-@@ -2223,6 +2507,7 @@ tcontrolcode(uchar ascii)
+@@ -2223,6 +2483,7 @@ tcontrolcode(uchar ascii)
  	case '\a':   /* BEL */
  		if (term.esc & ESC_STR_END) {
  			/* backwards compatibility to xterm */
@@ -1865,7 +1788,7 @@ index 6f40e35..32e030a 100644
  			strhandle();
  		} else {
  			xbell();
-@@ -2298,6 +2583,38 @@ tcontrolcode(uchar ascii)
+@@ -2298,6 +2559,38 @@ tcontrolcode(uchar ascii)
  	term.esc &= ~(ESC_STR_END|ESC_STR);
  }
  
@@ -1904,7 +1827,7 @@ index 6f40e35..32e030a 100644
  /*
   * returns 1 when the sequence is finished and it hasn't to read
   * more characters for this sequence, otherwise 0
-@@ -2316,6 +2633,7 @@ eschandle(uchar ascii)
+@@ -2316,6 +2609,7 @@ eschandle(uchar ascii)
  		term.esc |= ESC_UTF8;
  		return 0;
  	case 'P': /* DCS -- Device Control String */
@@ -1912,7 +1835,7 @@ index 6f40e35..32e030a 100644
  	case '_': /* APC -- Application Program Command */
  	case '^': /* PM -- Privacy Message */
  	case ']': /* OSC -- Operating System Command */
-@@ -2335,7 +2653,7 @@ eschandle(uchar ascii)
+@@ -2335,7 +2629,7 @@ eschandle(uchar ascii)
  		return 0;
  	case 'D': /* IND -- Linefeed */
  		if (term.c.y == term.bot) {
@@ -1921,7 +1844,7 @@ index 6f40e35..32e030a 100644
  		} else {
  			tmoveto(term.c.x, term.c.y+1);
  		}
-@@ -2348,7 +2666,7 @@ eschandle(uchar ascii)
+@@ -2348,7 +2642,7 @@ eschandle(uchar ascii)
  		break;
  	case 'M': /* RI -- Reverse index */
  		if (term.c.y == term.top) {
@@ -1930,7 +1853,7 @@ index 6f40e35..32e030a 100644
  		} else {
  			tmoveto(term.c.x, term.c.y-1);
  		}
-@@ -2376,8 +2694,10 @@ eschandle(uchar ascii)
+@@ -2376,8 +2670,10 @@ eschandle(uchar ascii)
  		tcursor(CURSOR_LOAD);
  		break;
  	case '\\': /* ST -- String Terminator */
@@ -1942,7 +1865,7 @@ index 6f40e35..32e030a 100644
  		break;
  	default:
  		fprintf(stderr, "erresc: unknown sequence ESC 0x%02X '%c'\n",
-@@ -2417,11 +2737,14 @@ tputc(Rune u)
+@@ -2417,11 +2713,14 @@ tputc(Rune u)
  	if (term.esc & ESC_STR) {
  		if (u == '\a' || u == 030 || u == 032 || u == 033 ||
  		   ISCONTROLC1(u)) {
@@ -1958,7 +1881,7 @@ index 6f40e35..32e030a 100644
  		if (strescseq.len+len >= strescseq.siz) {
  			/*
  			 * Here is a bug in terminals. If the user never sends
-@@ -2475,6 +2798,15 @@ check_control_code:
+@@ -2475,6 +2774,15 @@ check_control_code:
  				csihandle();
  			}
  			return;
@@ -1974,7 +1897,7 @@ index 6f40e35..32e030a 100644
  		} else if (term.esc & ESC_UTF8) {
  			tdefutf8(u);
  		} else if (term.esc & ESC_ALTCHARSET) {
-@@ -2545,7 +2877,10 @@ twrite(const char *buf, int buflen, int show_ctrl)
+@@ -2545,7 +2853,10 @@ twrite(const char *buf, int buflen, int show_ctrl)
  	int n;
  
  	for (n = 0; n < buflen; n += charsize) {
@@ -1986,7 +1909,7 @@ index 6f40e35..32e030a 100644
  			/* process a complete utf8 char */
  			charsize = utf8decode(buf + n, &u, buflen - n);
  			if (charsize == 0)
-@@ -2572,11 +2907,13 @@ twrite(const char *buf, int buflen, int show_ctrl)
+@@ -2572,11 +2883,13 @@ twrite(const char *buf, int buflen, int show_ctrl)
  void
  tresize(int col, int row)
  {
@@ -2002,7 +1925,7 @@ index 6f40e35..32e030a 100644
  
  	if (col < 1 || row < 1) {
  		fprintf(stderr,
-@@ -2584,23 +2921,19 @@ tresize(int col, int row)
+@@ -2584,23 +2897,19 @@ tresize(int col, int row)
  		return;
  	}
  
@@ -2039,7 +1962,7 @@ index 6f40e35..32e030a 100644
  	}
  
  	/* resize to new height */
-@@ -2609,6 +2942,15 @@ tresize(int col, int row)
+@@ -2609,6 +2918,15 @@ tresize(int col, int row)
  	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
  	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
  
@@ -2055,7 +1978,7 @@ index 6f40e35..32e030a 100644
  	/* resize each row to new width, zero-pad if needed */
  	for (i = 0; i < minrow; i++) {
  		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
-@@ -2622,7 +2964,6 @@ tresize(int col, int row)
+@@ -2622,7 +2940,6 @@ tresize(int col, int row)
  	}
  	if (col > term.col) {
  		bp = term.tabs + term.col;
@@ -2063,7 +1986,7 @@ index 6f40e35..32e030a 100644
  		memset(bp, 0, sizeof(*term.tabs) * (col - term.col));
  		while (--bp > term.tabs && !*bp)
  			/* nothing */ ;
-@@ -2634,11 +2975,10 @@ tresize(int col, int row)
+@@ -2634,11 +2951,10 @@ tresize(int col, int row)
  	term.row = row;
  	/* reset scrolling region */
  	tsetscroll(0, row-1);
@@ -2077,7 +2000,7 @@ index 6f40e35..32e030a 100644
  		if (mincol < col && 0 < minrow) {
  			tclearregion(mincol, 0, col - 1, minrow - 1);
  		}
-@@ -2648,7 +2988,22 @@ tresize(int col, int row)
+@@ -2648,7 +2964,22 @@ tresize(int col, int row)
  		tswapscreen();
  		tcursor(CURSOR_LOAD);
  	}
@@ -2101,7 +2024,7 @@ index 6f40e35..32e030a 100644
  }
  
  void
-@@ -2667,7 +3022,7 @@ drawregion(int x1, int y1, int x2, int y2)
+@@ -2667,7 +2998,7 @@ drawregion(int x1, int y1, int x2, int y2)
  			continue;
  
  		term.dirty[y] = 0;
@@ -2110,7 +2033,7 @@ index 6f40e35..32e030a 100644
  	}
  }
  
-@@ -2688,8 +3043,9 @@ draw(void)
+@@ -2688,8 +3019,9 @@ draw(void)
  		cx--;
  
  	drawregion(0, 0, term.col, term.row);
@@ -2400,7 +2323,7 @@ index fd3b0d8..4b55b0b 100644
 +extern TermWindow win;
 +extern Term term;
 diff --git a/x.c b/x.c
-index d73152b..aeab15e 100644
+index d73152b..5eb5fbb 100644
 --- a/x.c
 +++ b/x.c
 @@ -20,30 +20,8 @@ char *argv0;
@@ -2677,7 +2600,7 @@ index d73152b..aeab15e 100644
  void
  bpress(XEvent *e)
  {
-@@ -752,7 +686,7 @@ xresize(int col, int row)
+@@ -752,7 +683,7 @@ xresize(int col, int row)
  
  	XFreePixmap(xw.dpy, xw.buf);
  	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
@@ -2686,7 +2609,7 @@ index d73152b..aeab15e 100644
  	XftDrawChange(xw.draw, xw.buf);
  	xclear(0, 0, win.w, win.h);
  
-@@ -760,6 +694,24 @@ xresize(int col, int row)
+@@ -760,6 +691,24 @@ xresize(int col, int row)
  	xw.specbuf = xrealloc(xw.specbuf, col * sizeof(GlyphFontSpec));
  }
  
@@ -2711,7 +2634,7 @@ index d73152b..aeab15e 100644
  ushort
  sixd_to_16bit(int x)
  {
-@@ -812,6 +764,10 @@ xloadcols(void)
+@@ -812,6 +761,10 @@ xloadcols(void)
  			else
  				die("could not allocate color %d\n", i);
  		}
@@ -2722,7 +2645,7 @@ index d73152b..aeab15e 100644
  	loaded = 1;
  }
  
-@@ -842,6 +798,12 @@ xsetcolorname(int x, const char *name)
+@@ -842,6 +795,12 @@ xsetcolorname(int x, const char *name)
  	XftColorFree(xw.dpy, xw.vis, xw.cmap, &dc.col[x]);
  	dc.col[x] = ncolor;
  
@@ -2735,7 +2658,7 @@ index d73152b..aeab15e 100644
  	return 0;
  }
  
-@@ -856,6 +818,12 @@ xclear(int x1, int y1, int x2, int y2)
+@@ -856,6 +815,12 @@ xclear(int x1, int y1, int x2, int y2)
  			x1, y1, x2-x1, y2-y1);
  }
  
@@ -2748,7 +2671,7 @@ index d73152b..aeab15e 100644
  void
  xhints(void)
  {
-@@ -907,6 +875,60 @@ xgeommasktogravity(int mask)
+@@ -907,6 +872,60 @@ xgeommasktogravity(int mask)
  	return SouthEastGravity;
  }
  
@@ -2809,7 +2732,7 @@ index d73152b..aeab15e 100644
  int
  xloadfont(Font *f, FcPattern *pattern)
  {
-@@ -1072,60 +1094,6 @@ xunloadfonts(void)
+@@ -1072,60 +1091,6 @@ xunloadfonts(void)
  	xunloadfont(&dc.ibfont);
  }
  
@@ -2870,7 +2793,7 @@ index d73152b..aeab15e 100644
  void
  xinit(int cols, int rows)
  {
-@@ -1134,11 +1102,25 @@ xinit(int cols, int rows)
+@@ -1134,11 +1099,25 @@ xinit(int cols, int rows)
  	Window parent, root;
  	pid_t thispid = getpid();
  	XColor xmousefg, xmousebg;
@@ -2897,7 +2820,7 @@ index d73152b..aeab15e 100644
  
  	/* font */
  	if (!FcInit())
-@@ -1148,7 +1130,7 @@ xinit(int cols, int rows)
+@@ -1148,7 +1127,7 @@ xinit(int cols, int rows)
  	xloadfonts(usedfont, 0);
  
  	/* colors */
@@ -2906,7 +2829,7 @@ index d73152b..aeab15e 100644
  	xloadcols();
  
  	/* adjust fixed window geometry */
-@@ -1168,11 +1150,8 @@ xinit(int cols, int rows)
+@@ -1168,11 +1147,8 @@ xinit(int cols, int rows)
  		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
  	xw.attrs.colormap = xw.cmap;
  
@@ -2920,7 +2843,7 @@ index d73152b..aeab15e 100644
  			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
  			| CWEventMask | CWColormap, &xw.attrs);
  	if (parent != root)
-@@ -1183,7 +1162,7 @@ xinit(int cols, int rows)
+@@ -1183,7 +1159,7 @@ xinit(int cols, int rows)
  	dc.gc = XCreateGC(xw.dpy, xw.win, GCGraphicsExposures,
  			&gcvalues);
  	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
@@ -2929,7 +2852,7 @@ index d73152b..aeab15e 100644
  	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
  	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
  
-@@ -1227,6 +1206,9 @@ xinit(int cols, int rows)
+@@ -1227,6 +1203,9 @@ xinit(int cols, int rows)
  	XChangeProperty(xw.dpy, xw.win, xw.netwmpid, XA_CARDINAL, 32,
  			PropModeReplace, (uchar *)&thispid, 1);
  
@@ -2939,7 +2862,7 @@ index d73152b..aeab15e 100644
  	win.mode = MODE_NUMLOCK;
  	resettitle();
  	xhints();
-@@ -1249,7 +1231,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
+@@ -1249,7 +1228,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
  	ushort mode, prevmode = USHRT_MAX;
  	Font *font = &dc.font;
  	int frcflags = FRC_NORMAL;
@@ -2948,7 +2871,7 @@ index d73152b..aeab15e 100644
  	Rune rune;
  	FT_UInt glyphidx;
  	FcResult fcres;
-@@ -1378,8 +1360,8 @@ void
+@@ -1378,8 +1357,8 @@ void
  xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y)
  {
  	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
@@ -2959,7 +2882,7 @@ index d73152b..aeab15e 100644
  	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
  	XRenderColor colfg, colbg;
  	XRectangle r;
-@@ -1513,10 +1495,10 @@ void
+@@ -1513,10 +1492,10 @@ void
  xdrawglyph(Glyph g, int x, int y)
  {
  	int numspecs;
@@ -2973,7 +2896,7 @@ index d73152b..aeab15e 100644
  }
  
  void
-@@ -1688,11 +1670,126 @@ xdrawline(Line line, int x1, int y1, int x2)
+@@ -1688,11 +1667,126 @@ xdrawline(Line line, int x1, int y1, int x2)
  void
  xfinishdraw(void)
  {
@@ -3105,7 +3028,7 @@ index d73152b..aeab15e 100644
  }
  
  void
-@@ -1844,7 +1941,7 @@ kpress(XEvent *ev)
+@@ -1844,7 +1938,7 @@ kpress(XEvent *ev)
  	XKeyEvent *e = &ev->xkey;
  	KeySym ksym = NoSymbol;
  	char buf[64], *customkey;
@@ -3114,7 +3037,7 @@ index d73152b..aeab15e 100644
  	Rune c;
  	Status status;
  	Shortcut *bp;
-@@ -1859,9 +1956,13 @@ kpress(XEvent *ev)
+@@ -1859,9 +1953,13 @@ kpress(XEvent *ev)
  	} else {
  		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
  	}
@@ -3129,7 +3052,7 @@ index d73152b..aeab15e 100644
  			bp->func(&(bp->arg));
  			return;
  		}
-@@ -2047,6 +2148,10 @@ main(int argc, char *argv[])
+@@ -2047,6 +2145,10 @@ main(int argc, char *argv[])
  	case 'a':
  		allowaltscreen = 0;
  		break;
