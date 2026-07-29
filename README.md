@@ -1,13 +1,15 @@
 # Simple Terminal+ (st+)
 
-<img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="50%"/>
+<img src="https://github.com/user-attachments/assets/723aef53-74e6-4c5f-a506-06cca5aade4b" alt="drawing" width="30%" />
+<img src="https://github.com/user-attachments/assets/115a988b-0354-4098-947e-05fb92bc9f5e" alt="drawing" width="30%" />
+<img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="30%"/>
 
 Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
 
 Simple Terminal+ is a beautiful, SIXEL-capable, lightweight terminal (~100KB) with just-enough essential features for rock-solid stability in daily usage. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
-- **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim).
+- **Features SIXEL support!** Allows editors such as Neovim to display images via [plugins](https://github.com/3rd/image.nvim), or `lsix` to list images.
 - Automatically install a [nerd-font](https://www.nerdfonts.com/) or download a beautiful [Gogh](https://gogh-co.github.io/Gogh/) color scheme via the `st-config` command.
 - Customizable color scheme with built-in support for over 300+ [Gogh](https://gogh-co.github.io/Gogh/) color schemes.
 - Proper "Open Terminal Here" integration for Nautilus, including "Open in Remote/Local Terminal" for remote connections.
@@ -32,7 +34,7 @@ If you are a heavy tmux user and just want an AppImage of a fast, minimal, light
 Performance benchmarking on a decent machine:
 | Terminal | Avg Time | Speed | Benchmark Command |
 |:-----|------|------------|:---------------------|
-| **ST+** | **0.022s** | **8.3×** | `time st+ -e bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
+| **st+** | **0.022s** | **8.3×** | `time st+ -e bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
 | GNOME Terminal | 0.182s | 1.0× | `time gnome-terminal -- bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
 | XTERM | 0.033s | 5.5× | `time xterm -e bash printf 'ABCDEFGHIJ0123456789%.0s\n' {1..5}` |
 
@@ -70,7 +72,7 @@ To avoid conflicts, the default nautilus open terminal extension should be remov
 To compile and install st+ (needs root):
 
     git clone https://github.com/vishnu350/st && cd st
-    make patch                                       ## Apply ST+ patches first
+    make patch                                       ## Apply st+ patches first
     make install CFLAGS="-O3 -march=native -flto"    ## Optimize for highest performance
 
 Other build options:
