@@ -4,8 +4,6 @@
 <img src="https://github.com/user-attachments/assets/115a988b-0354-4098-947e-05fb92bc9f5e" alt="drawing" width="30%" />
 <img src="https://github.com/user-attachments/assets/14914cf1-5bfb-4f2f-859e-5d15da46ade0" alt="drawing" width="30%"/>
 
-Modern terminal emulators have grown bloated, packing in features you'll never use, emulating obscure terminals you'll never need, and offloads to GPUs you'll never afford.
-
 Simple Terminal+ is a beautiful, SIXEL-capable, lightweight terminal (~100KB) with just-enough essential features for rock-solid stability in daily usage. It is best used with tmux combined with a [nerd-fonts](https://www.nerdfonts.com/) of your choice.
 
 This is a fork of [st](https://st.suckless.org) that bundles a curated set of patches and quality-of-life features:
