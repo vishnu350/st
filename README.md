@@ -39,7 +39,7 @@ Performance benchmarking on a decent machine:
 
 # Installation (AppImage)
 
-The recommended AppImage installation method is through Ivan's [AM/Appman](https://github.com/ivan-hc/AM):
+The recommended AppImage installation method is through the [AM/Appman](https://github.com/ivan-hc/AM) AppImage package manager:
 
     am -i st+
 
